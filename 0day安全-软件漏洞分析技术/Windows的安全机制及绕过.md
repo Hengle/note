@@ -18,7 +18,7 @@
 - [4. DEP：数据执行保护](#4-dep数据执行保护)
     - [4.1. 原理](#41-原理)
     - [4.2. 工作状态](#42-工作状态)
-    - [4.3. /NXCOMPAT](#43-nxcompat)
+    - [4.3. 编译器选项：/NXCOMPAT](#43-编译器选项nxcompat)
     - [4.4. 局限性](#44-局限性)
     - [4.5. 绕过](#45-绕过)
         - [4.5.1. Ret2Libc（Return-to-libc）](#451-ret2libcreturn-to-libc)
@@ -31,12 +31,11 @@
     - [6.2. 绕过方法](#62-绕过方法)
 - [7. 堆的安全机制](#7-堆的安全机制)
     - [7.1. 安全机制](#71-安全机制)
-        - [7.1.1. PEB random：](#711-peb-random)
-        - [7.1.2. Safe Unlink：](#712-safe-unlink)
-        - [7.1.3. heap cookie：](#713-heap-cookie)
-        - [7.1.4. 元数据加密：](#714-元数据加密)
-    - [7.2. 绕过](#72-绕过)
-        - [7.2.1. 攻击堆中存储的变量](#721-攻击堆中存储的变量)
+        - [7.1.1. PEB random](#711-peb-random)
+        - [7.1.2. Safe Unlink](#712-safe-unlink)
+        - [7.1.3. heap cookie](#713-heap-cookie)
+        - [7.1.4. 元数据加密](#714-元数据加密)
+    - [7.2. 弱点及绕过](#72-弱点及绕过)
 
 <!-- /TOC -->
 # 1. Windows安全机制概述
@@ -83,7 +82,7 @@ SafeSEH的功能是在RtlDispatchException函数中实现的：
 * 检查异常处理链是否位于当前程序的栈中，如果不在当前栈中，程序将终止异常处理函数的调用
 * 检查异常处理函数指针是否指向当前程序的栈中，如果指向当前栈中，程序将终止异常处理函数的调用
 * 调用RtlIsValidHandler进行进一步校验
-![RtlIsValidHandler](../photo/0day安全-软件漏洞分析技术_高级漏洞利用原理_RtlIsValidHandler.jpg)
+![RtlIsValidHandler](../photo/0day安全-软件漏洞分析技术_Windows的安全机制及绕过_RtlIsValidHandler.jpg)
 ## 3.3. 允许执行的情况
 * 异常处理函数位于加载模块内存范围之外，DEP关闭
 * 异常处理函数位于加载模块内存范围之内，相应模块未启用SafeSEH（安全SEH表为空），同时相应模块不是纯IL
@@ -109,8 +108,8 @@ SafeSEH的功能是在RtlDispatchException函数中实现的：
 * AlwaysOff：对所有进程都禁用DEP，DEP不能被动态开启
 
 通过计算机属性和`c:\boot.ini`文件中的`/noexecute`启动项的值，可以控制DEP的工作模式。
-## 4.3. /NXCOMPAT
-Visual Studio 2005及后续版本引入的一个链接选项，默认开启。采用/NXCOMPAT编译的程序会在文件的PE头中设置IMAGE_DLLCHARACTERISTICS_NX_COMPAT标识，该标识通过结构体IMAGE_OPTIONAL_HEADER中的DllCharacteristics变量进行体现，当DllCharacteristics设置为0x0100表示该程序采用了/NXCOMPAT编译。经过/NXCOMPAT编译的程序在Windows vista及后续版本的操作系统上会自动启用DEP保护。
+## 4.3. 编译器选项：/NXCOMPAT
+采用/NXCOMPAT编译的程序会在文件的PE头中设置IMAGE_DLLCHARACTERISTICS_NX_COMPAT标识，该标识通过结构体IMAGE_OPTIONAL_HEADER中的DllCharacteristics变量进行体现，当DllCharacteristics设置为0x0100表示该程序采用了/NXCOMPAT编译。经过/NXCOMPAT编译的程序在Windows vista及后续版本的操作系统上会自动启用DEP保护。
 ## 4.4. 局限性
 * 硬件DEP需要CPU的支持
 * Windows不能对所有进程开启DEP保护，否则可能会出现执行异常
@@ -138,14 +137,14 @@ Visual Studio 2005及后续版本引入的一个链接选项，默认开启。�
 ## 6.1. 原理
 在程序转入异常处理前，且在SafeSEH的RtlIsValidHandler函数校验前，SEHOP会检查SEH链上最后一个异常处理函数是否为系统默认异常处理函数，即检查SEH链的完整性。其伪代码如下：
 ```c
-if (process_flags & 0x40 == 0) { //如果没有 SEH 记录则不进行检测
+if (process_flags & 0x40 == 0) {     //如果没有SEH记录则不进行检测
     if (record != 0xFFFFFFFF) {
         //开始检测
-        do { 
-            if (record < stack_bottom || record > stack_top)// SEH记录必须位于栈中 
+        do {
+            if (record < stack_bottom || record > stack_top)     //SEH记录必须位于栈中
                 goto corruption;
-            if ((char*)record + sizeof(EXCEPTION_REGISTRATION) > stack_top) //SEH 记录结构需完全在栈中
-                goto corruption; 
+            if ((char*)record + sizeof(EXCEPTION_REGISTRATION) > stack_top)    //SEH记录结构需完全在栈中
+                goto corruption;
             if ((record & 3) != 0) //SEH 记录必须 4 字节对齐
                 goto corruption; handler = record->handler;
             if (handler >= stack_bottom && handler < stack_top) //异常处理函数地址不能位于栈中
@@ -165,27 +164,35 @@ if (process_flags & 0x40 == 0) { //如果没有 SEH 记录则不进行检测
 * 伪造一个完整的SEH链（定位FinalExceptionHandler函数的时候会受到ASLR的影响）
 # 7. 堆的安全机制
 ## 7.1. 安全机制
-### 7.1.1. PEB random：
-微软在Windows XP SP2 之后不再使用固定的 PEB 基址 0x7ffdf000，而 是使用具有一定随机性的 PEB 基址，这一点我们在第 13 章中的 PEB 与 TEB 随机化 一节介绍过，大家可以参考一下那一节。PEB 随机化之后主要影响了对 PEB 中函数的 攻击，在DWORD SHOOT 的时候，PEB 中的函数指针是绝佳的目标，移动 PEB 基址 将在一定程度上给这类攻击增加难度。覆盖 PEB 中函数指针的利用方式请参见“堆溢 出利用（下）”中的实验和“攻击 PEB 中的函数指针”的相关介绍。
-### 7.1.2. Safe Unlink：
-微软改写了操作双向链表的代码，在卸载 free list 中的堆块时更加小心。 对照“堆溢出利用（上）——DWORD SHOOT”中关于双向链表拆卸问题的描述，在 SP2 之前的链表拆卸操作类似于如下代码：
+### 7.1.1. PEB random
+对PEB、TEB基址进行随机化。
+### 7.1.2. Safe Unlink
+在Unlink之前检查结点的指向是否正确。
 ```
+//普通卸载
 int remove (ListNode * node) {
-node -> blink -> flink = node -> flink; node -> flink -> blink = node -> blink; return 0;
+    node -> blink -> flink = node -> flink;
+    node -> flink -> blink = node -> blink; 
+    return 0;
 }
+//安全卸载
 int safe_remove (ListNode * node) {
-if( (node->blink->flink==node)&&(node->flink->blink==node) ) {
-node -> blink -> flink = node -> flink; node -> flink -> blink = node -> blink; return 1; }
-else {
-链表指针被破坏，进入异常 return 0;
-} }
+    if( (node->blink->flink==node)&&(node->flink->blink==node) ) {
+        node -> blink -> flink = node -> flink; 
+        node -> flink -> blink = node -> blink; 
+        return 1; 
+    }
+    else{
+        //链表指针被破坏，进入异常 
+        return 0;
+    }
+}
 ```
-### 7.1.3. heap cookie：
-与栈中的 security cookie 类似，微软在堆中也引入了 cookie，用于检测 堆溢出的发生。cookie 被布置在堆首部分原堆块的 segment table 的位置，占 1 个字节 大小，如图 15.1.1 所示。
-### 7.1.4. 元数据加密：
-微软在 Windows V ista 及后续版本的操作系统中开始使用该安全措施。 块首中的一些重要数据在保存时会与一个 4 字节的随机数进行异或运算，在使用这些 数据时候需要再进行一次异或运行来还原，这样我们就不能直接破坏这些数据了，以 达到保护堆的目的。
-## 7.2. 绕过
-堆研究的先驱之一——Matt C onover，在他 CanSecWest 04 的演讲议题“Windows H eap
-Exploitation(Win2K SP0 through WinXP SP2)”中，针对 PEB random 机制，指出这种变动只是 在 0x7FFDF000~0x7FFD4000 之间移动（大家可以参考我们在第 13 章介绍 PEB 随机化时做的 测试），随机移动的区间很小，尤其在多线程状态下容易被预测出来。 对于 heap cookie，由于只占一个字节，其变化区间为 0~256，在研究其生成的随机算法之 后，仍然存在被破解的可能。 对于其他安全措施如 Safe Unlink 等，前辈们也找到了一些破解的思路。 但是即便有这些突破安全机制的思路，要想在Windows XP SP2 以后系统上成功的利用堆 溢出漏洞仍然是一件难如登天的事情，因为这些思路一般都需要相当苛刻的条件。
-### 7.2.1. 攻击堆中存储的变量
-堆中的各项保护措施是对堆块的关键结构进行保护，而对于堆中存储的内容是不保护的。如果堆中存放着一些重要的数据或结构指针，如函数指针等内容，通过覆盖这些重要的内容 还是可以实现溢出的。这种攻击手段与堆保护措施没有什么联系，所以我们在这就不过多讨论了。
+### 7.1.3. heap cookie
+原理类似于栈中的security cookie，用于检测堆溢出的发生，大小为1个字节。
+### 7.1.4. 元数据加密
+在保存块首中的一些重要数据时，会与一个4字节的随机数进行异或运算，在使用这些数据时候需要再进行一次异或来还原。
+## 7.2. 弱点及绕过
+* PEB、TEB随机化的程度有限（在0x7FFDF000~0x7FFD4000之间移动），尤其在多线程状态下容易被预测出来
+* heap cookie的变化区间为0-256，区间过小
+* 堆的各项保护措施是对堆块的关键结构进行保护，而对于堆中存储的内容是不保护的。所以可以攻击堆中存放的一些重要的数据或结构指针，如函数指针等

@@ -17,12 +17,12 @@
     - [3.4. 绕过](#34-绕过)
 - [4. DEP：数据执行保护](#4-dep数据执行保护)
     - [4.1. 原理](#41-原理)
-    - [4.2. 工作状态](#42-工作状态)
+    - [4.2. 工作模式](#42-工作模式)
     - [4.3. 编译器选项：/NXCOMPAT](#43-编译器选项nxcompat)
     - [4.4. 局限性](#44-局限性)
     - [4.5. 绕过](#45-绕过)
         - [4.5.1. Ret2Libc（Return-to-libc）](#451-ret2libcreturn-to-libc)
-        - [4.5.2. 其它](#452-其它)
+        - [4.5.2. 其它方法](#452-其它方法)
 - [5. ASLR](#5-aslr)
     - [5.1. 弱点](#51-弱点)
     - [5.2. 绕过](#52-绕过)
@@ -97,33 +97,38 @@ SafeSEH的功能是在RtlDispatchException函数中实现的：
 * 攻击返回地址或者C++虚函数
 # 4. DEP：数据执行保护
 ## 4.1. 原理
-将数据所在内存页（如默认的堆页、各种堆栈页以及内存池页）标识为不可执行，当程序溢出成功转入shellcode时，程序会尝试在数据页面上执行指令，此时CPU就会抛出异常，而不是去执行恶意指令。根据实现的机制不同可分为软件DEP和硬件DEP：
+将数据所在内存页（如默认的堆页、各种堆栈页以及内存池页）标识为不可执行，阻止shellcode执行。根据实现的机制不同可分为软件DEP和硬件DEP：
 * 与CPU硬件无关，Windows利用软件模拟实现DEP，对操作系统提供一定的保护
 * 硬件DEP需要CPU的支持，操作系统通过设置内存页的NX（AMD）/XD（Intel）属性标记，来指明不能从该内存执行代码
-## 4.2. 工作状态
-根据启动参数的不同，DEP工作状态可以分为四种：
-* Optin：仅将DEP保护应用于Windows系统组件和服务，对于其他程序不予保护，但用户可以通过应用程序兼容性工具(ACT，Application Compatibility Toolkit)为选定的程序启用DEP，在Vista下经过/NXcompat选项编译过的程序将自动应用DEP。这种模式可以被应用程序动态关闭。多用于普通用户版的操作系统，如Windows XP、Windows Vista、Windows7。
-* Optout：为排除列表程序外的所有程序和服务启用DEP，用户可以手动在排除列表中指定不启用DEP保护的程序和服务。这种模式可以被应用程序动态关闭。多用于服务器版的操作系统，如Windows 2003、Windows 2008
-* AlwaysOn：对所有进程启用DEP的保护，DEP不可以被关闭，目前只有在64位的操作系统上才工作在AlwaysOn模式
+## 4.2. 工作模式
+根据启动参数的不同，DEP工作模式可以分为四种：
+* Optin：
+    * 仅将DEP保护应用于Windows系统组件和服务，对于其他程序不予保护
+    * 用户可以通过应用程序兼容性工具为选定的程序强制启用DEP
+    * Vista及后续操作系统中，经过/NXCOMPAT选项编译过的程序将启用DEP
+    * 这种模式可以被应用程序动态关闭
+* Optout：为排除列表程序外的所有程序和服务启用DEP，用户可以手动在排除列表中指定不启用DEP保护的程序和服务。这种模式可以被应用程序动态关闭
+* AlwaysOn：对所有进程启用DEP的保护，DEP不可以被关闭，目前只有在64位的操作系统才工作在AlwaysOn模式
 * AlwaysOff：对所有进程都禁用DEP，DEP不能被动态开启
 
 通过计算机属性和`c:\boot.ini`文件中的`/noexecute`启动项的值，可以控制DEP的工作模式。
 ## 4.3. 编译器选项：/NXCOMPAT
-采用/NXCOMPAT编译的程序会在文件的PE头中设置IMAGE_DLLCHARACTERISTICS_NX_COMPAT标识，该标识通过结构体IMAGE_OPTIONAL_HEADER中的DllCharacteristics变量进行体现，当DllCharacteristics设置为0x0100表示该程序采用了/NXCOMPAT编译。经过/NXCOMPAT编译的程序在Windows vista及后续版本的操作系统上会自动启用DEP保护。
+采用/NXCOMPAT选项编译的程序会在文件的PE头中设置IMAGE_DLLCHARACTERISTICS_NX_COMPAT标识，该标识通过结构体IMAGE_OPTIONAL_HEADER中的DllCharacteristics变量进行体现，当DllCharacteristics设置为0x0100表示该程序采用了/NXCOMPAT编译。经过/NXCOMPAT选项编译的程序在Vista及后续操作系统中会自动启用DEP。
 ## 4.4. 局限性
 * 硬件DEP需要CPU的支持
 * Windows不能对所有进程开启DEP保护，否则可能会出现执行异常
 * 当DEP工作在Optin和Optout下时，DEP是可以被动态关闭和开启的
 ## 4.5. 绕过
 ### 4.5.1. Ret2Libc（Return-to-libc）
-让程序返回到一个已经存在的系统函数中（必然存在于可执行页上），利用系统函数中的指令来完成功能，并在之后通过系统函数中的返回指令加上栈帧的配合回收程序的控制权。通过以下三种方法可以简化整个过程：
-* 通过跳转到VirtualProtect函数来将shellcode所在内存页设置为可执行状态，然后再转入shellcode 执行
-* 通过跳转到VIrtualAlloc函数开辟一段具有执行权限的内存空间，然后将shellcode复制到这段内存中执行
-### 4.5.2. 其它
+让程序返回到一个已经存在的系统函数中（必然存在于可执行页上），利用系统函数中的指令来完成功能，并在之后通过系统函数中的返回指令加上栈帧的配合回收程序的控制权。通过这种方法完成完整功能较为繁琐，可以通过以下三种方法简化过程：
+* 跳转到ZwSetInformationProcess函数将DEP关闭后再转入shellcode执行
+* 跳转到VirtualProtect函数来将shellcode所在内存页设置为可执行状态，然后再转入shellcode执行
+* 跳转到VIrtualAlloc函数开辟一段具有执行权限的内存空间，然后将shellcode复制到这段内存中执行
+### 4.5.2. 其它方法
 * 利用可能存在的可执行内存（如系统功能需要而创建的可执行内存）
 * 攻击.NET、Java applet中的可执行内存部分
 # 5. ASLR
-对映像基址（可通过注册表修改工作模式为禁用、强制和根据PE头标识启用）、堆栈和PEB、TEB的加载地址进行地址随机化，从而干扰shellcode的定位。支持ASLR的程序会在它的PE头中设置IMAGE_DLL_CHARACTERISTICS_ DYNAMIC_BASE标识。对应到编译器的/dynamicbase链接选项。
+对映像基址（可通过注册表修改工作模式为禁用、强制和根据PE头标识启用）、堆栈和PEB、TEB的加载地址进行地址随机化，从而干扰shellcode的定位。支持ASLR的程序会在它的PE头中设置IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE标识。ASLR对应到编译器的/dynamicbase链接选项。
 ## 5.1. 弱点
 * 映像基址的偏移即后两个字节是固定不变的
 * 堆栈随机化的防护面有限

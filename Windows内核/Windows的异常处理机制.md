@@ -50,20 +50,20 @@
 * 进行异常分发：寻找异常的处理函数
 * 异常处理：调用异常处理函数
 # 2. 记录异常信息
-![NoteProcess](../photo/操作系统_Windows的异常处理机制_NoteProcess.jpg)
+![NoteProcess](../photo/NoteProcess.jpg)
 
 throw关键词和CxxThrowException为C语言的模拟异常特征，其它编程语言提供的模拟异常机制的这两点（关键词和初始调用函数）是不同的。
 ## 2.1. 异常类型代码
-![Code](../photo/操作系统_Windows的异常处理机制_Code.jpg)
+![Code](../photo/ExceptionCode.jpg)
 ## 2.2. 模拟异常的特殊填充
 模拟异常在填充ExceptionRecord结构体的时候，ExceptionCode为一个固定值，该值依赖于编译环境；ExceptionAddress也是固定值，为RaiseException函数的地址。
 # 3. 异常分发
 ## 3.1. 异常回调函数在哪里
 SEH是线程相关的，也就是说每个线程有它自己的异常处理回调函数。通过当前线程的FS:[0]可以找到TEB，进而找到一个_EXCEPTION_REGISTRATION_RECORD结构体链表（该结构一般位于栈中，零环和三环均使用该结构体，一个结构体对应一个异常处理函数），操作系统遍历该链表，以查找一个同意处理该异常的结构体（通过返回值表达是否同意处理），只要找到一个处理异常的函数，就会停止遍历。
-![ExceptionList](../photo/操作系统_Windows的异常处理机制_ExceptionList.jpg)
+![ExceptionList](../photo/ExceptionList.jpg)
 ## 3.2. KiDispatchException
 所有类型的异常均通过KiDispatchException函数分发。
-![KiDispatchException](../photo/操作系统_Windows的异常处理机制_KiDispatchException.jpg)
+![KiDispatchException](../photo/KiDispatchException.jpg)
 
 * 用户模式第一次机会，会优先调用内核调试器，如果不存在内核调试器或者内核调试器未处理，才会调用DbgkForwardException（汇编代码分析得知）
 * 内核RtlDispatchException会遍历存于fs:[0]的内核异常链表调用异常处理函数

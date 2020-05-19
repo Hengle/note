@@ -421,7 +421,7 @@ NTSYSAPI  NTSTATUS NTAPI NtProtectVirtualMemory(
 以上为NtProtectVirtualMemory函数原型，参数分别为进程句柄、存有需要修改的页面地址的内存空间的指针、需要修改的字节大小、新的权限代码、存放旧的权限代码的内存空间指针。函数调用之后，2、3、5三个参数可能会被改变。2会向下对齐到1000的倍数地址（ex：7FFDF150->7FFDF000），3会向上对齐到1000的倍数（ex：3FF->1000），5会存放有旧的权限代码。
 # 5. 系统服务表
 ## 5.1. 概念图
-![SystemServiceTable](../photo/操作系统_API的调用过程_SystemServiceTable.jpg)
+![SystemServiceTable](../photo/SystemServiceTable.jpg)
 ### 5.1.1. 系统服务表位置
 系统服务表位于_KTHREAD + 0xE0
 ### 5.1.2. 系统服务表成员

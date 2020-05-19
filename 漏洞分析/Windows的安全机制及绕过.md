@@ -92,7 +92,7 @@ SafeSEH的功能是在RtlDispatchException函数中实现的：
 * 检查异常处理链是否位于当前程序的栈中，如果不在当前栈中，程序将终止异常处理函数的调用
 * 检查异常处理函数指针是否指向当前程序的栈中，如果指向当前栈中，程序将终止异常处理函数的调用
 * 调用RtlIsValidHandler进行进一步校验
-![RtlIsValidHandler](../photo/0day安全-软件漏洞分析技术_Windows的安全机制及绕过_RtlIsValidHandler.jpg)
+![RtlIsValidHandler](../photo/RtlIsValidHandler.jpg)
 ## 3.3. 允许执行的情况
 * 异常处理函数位于加载模块内存范围之外，DEP关闭
 * 异常处理函数位于加载模块内存范围之内，相应模块未启用SafeSEH（安全SEH表为空），同时相应模块不是纯IL

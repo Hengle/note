@@ -12,6 +12,8 @@
         - [5.1.2. _KAPC_STATE](#512-_kapc_state)
         - [5.1.3. _KAPC](#513-_kapc)
         - [5.1.4. _KWAIT_BLOCK](#514-_kwait_block)
+    - [5.2. _CM_POST_BLOCK](#52-_cm_post_block)
+    - [_CLIENT_ID](#_client_id)
 - [6. _EPROCESS](#6-_eprocess)
     - [6.1. _KPROCESS](#61-_kprocess)
     - [6.2. _HANDLE_TABLE](#62-_handle_table)
@@ -255,21 +257,21 @@ nt!_KPRCB
 ```x86asm
 kd> dt _ETHREAD
 nt!_ETHREAD
-   +0x000 Tcb              : _KTHREAD
-   +0x1c0 CreateTime       : _LARGE_INTEGER
+   +0x000 Tcb              : _KTHREAD            ;指向内核层的KTHREAD对象
+   +0x1c0 CreateTime       : _LARGE_INTEGER      ;线程的创建时间
    +0x1c0 NestedFaultCount : Pos 0, 2 Bits
    +0x1c0 ApcNeeded        : Pos 2, 1 Bit
-   +0x1c8 ExitTime         : _LARGE_INTEGER
-   +0x1c8 LpcReplyChain    : _LIST_ENTRY
-   +0x1c8 KeyedWaitChain   : _LIST_ENTRY
-   +0x1d0 ExitStatus       : Int4B
+   +0x1c8 ExitTime         : _LARGE_INTEGER      ;线程的退出时间，在ExitThread中赋值
+   +0x1c8 LpcReplyChain    : _LIST_ENTRY         ;用于跨进程通信(LPC)
+   +0x1c8 KeyedWaitChain   : _LIST_ENTRY         ;用于带键事件的等待链表
+   +0x1d0 ExitStatus       : Int4B               ;线程的退出状态，当线程主动退出或被动退出时这个域会由框架代码填充
    +0x1d0 OfsChain         : Ptr32 Void
-   +0x1d4 PostBlockList    : _LIST_ENTRY
-   +0x1dc TerminationPort  : Ptr32 _TERMINATION_PORT
-   +0x1dc ReaperLink       : Ptr32 _ETHREAD
+   +0x1d4 PostBlockList    : _LIST_ENTRY         ;双向链表，链表中的各个节点类型为PCM_POST_BLOCK，它被用于一个线程向"配置管理器"登记注册表键的变化通知
+   +0x1dc TerminationPort  : Ptr32 _TERMINATION_PORT  ;链表头，当一个线程退出时，系统会通知所有已经登记过要接收其终止事件的那些"端口"
+   +0x1dc ReaperLink       : Ptr32 _ETHREAD      ;单链表节点，仅在线程退出时使用。当线程被终止时，该节点将被挂到PsReaperListHead链表上(用以告知内核当前线程将要退出了，请收到相关的线程资源)，所以，在线程回收器(reaper)的工作项目(WorkItem)中该线程的内核栈得以收回
    +0x1dc KeyedWaitValue   : Ptr32 Void
-   +0x1e0 ActiveTimerListLock : Uint4B
-   +0x1e4 ActiveTimerListHead : _LIST_ENTRY
+   +0x1e0 ActiveTimerListLock : Uint4B           ;双向链表头，包含了当前线程的所有定时器
+   +0x1e4 ActiveTimerListHead : _LIST_ENTRY      ;操作这个链表(包含当前线程的所有定时器的双链表)的自旋锁。使用自旋锁可以把原本可能发生的并行事件导致的问题通过强制串行化得到解决。比如对线程中的定时器这个互斥资源就典型的需要串行化，否则将导致定时器的错乱等很多问题
    +0x1ec Cid              : _CLIENT_ID          ;进程ID和线程ID
    +0x1f4 LpcReplySemaphore : _KSEMAPHORE
    +0x1f4 KeyedWaitSemaphore : _KSEMAPHORE
@@ -441,6 +443,29 @@ nt!_KWAIT_BLOCK
    +0x016 WaitType         : Uint2B                 ;等待类型，0代表需要所有被等待对象都符合条件才能激活，1代表只需要一个被等待对象符合条件就可以激活
 
 ```
+## 5.2. _CM_POST_BLOCK
+```c
+typedef struct _CM_POST_BLOCK
+{ 
+#if DBG 
+    BOOLEAN                     TraceIntoDebugger; 
+#endif 
+    LIST_ENTRY                  NotifyList; 
+    LIST_ENTRY                  ThreadList; 
+    LIST_ENTRY                  CancelPostList;    //slave notifications that are attached to this notification
+    struct _CM_POST_KEY_BODY    *PostKeyBody; 
+    ULONG                       NotifyType; 
+    PCM_POST_BLOCK_UNION        u; 
+} CM_POST_BLOCK, *PCM_POST_BLOCK; 
+```
+## _CLIENT_ID
+```c
+typedef struct _CLIENT_ID
+{
+     PVOID UniqueProcess;           //等于所属进程的UniqueProcessId
+     PVOID UniqueThread;            //等于此线程对象在进程句柄表中的句柄
+} CLIENT_ID, *PCLIENT_ID;
+```
 # 6. _EPROCESS
 ```x86asm
 kd> dt _EPROCESS
@@ -498,7 +523,7 @@ nt!_EPROCESS
    +0x1a0 ActiveThreads    : Uint4B              ;活动线程的数量，0代表无活动线程，进程即将结束，将会从活动进程链表中被移除
    +0x1a4 GrantedAccess    : Uint4B
    +0x1a8 DefaultHardErrorProcessing : Uint4B
-   +0x1ac LastThreadExitStatus : Int4B
+   +0x1ac LastThreadExitStatus : Int4B           ;进程中的每个线程退出时，除了对ETHREAD的ExitStatus赋值以外，还会给当前线程所属的进程的该域进行赋值
    +0x1b0 Peb              : Ptr32 _PEB          ;Process Environment Block，进程环境块，进程在3环的一个结构体（3环进程可以对其进行读写），里面包含了进程的模块列表、是否处于调试状态等重要信息
    +0x1b4 PrefetchTrace    : _EX_FAST_REF
    +0x1b8 ReadOperationCount : _LARGE_INTEGER
@@ -674,7 +699,7 @@ nt!_KMUTANT
 ```
 # 8. 异常相关
 ## 8.1. _EXCEPTION_RECORD
-```x86asm
+```c
 typedef struct _EXCEPTION_RECORD {
   DWORD                    ExceptionCode;          //异常代码
   DWORD                    ExceptionFlags;         //异常状态，CPU异常值为0，软件模拟异常值为1，嵌套异常值为0x10
@@ -685,7 +710,7 @@ typedef struct _EXCEPTION_RECORD {
 } EXCEPTION_RECORD;
 ```
 ## 8.2. _EXCEPTION_REGISTRATION_RECORD
-```x86asm
+```c
 typedef struct _EXCEPTION_REGISTRATION_RECORD
 {
      PEXCEPTION_REGISTRATION_RECORD Next;          //异常链表下一个异常结构体指针
@@ -693,7 +718,7 @@ typedef struct _EXCEPTION_REGISTRATION_RECORD
 } EXCEPTION_REGISTRATION_RECORD, *PEXCEPTION_REGISTRATION_RECORD;
 ```
 ## 8.3. VC_EXCEPTION_REGISTRATION
-```x86asm
+```c
 struct VC_EXCEPTION_REGISTRATION
 {
      VC_EXCEPTION_REGISTRATION* prev;        //前一个结构体的指针
@@ -710,7 +735,7 @@ struct VC_EXCEPTION_REGISTRATION
 }
 ```
 ### 8.3.1. scopetable_entry
-```x86asm
+```c
 struct scopetable_entry
 {
      DWORD     prev_entryindex;   //该try{}结构的上层try{}结构在scopetable中的索引，如果没有上层try{}结构，则该值为-1
@@ -720,7 +745,7 @@ struct scopetable_entry
 ```
 ## 8.4. _VECTORED_EXCEPTION_NODE
 VEH结点。
-```x86asm
+```c
 struct _VECTORED_EXCEPTION_NODE
 {
    DWORD m_pNextNode; 

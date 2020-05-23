@@ -11,6 +11,7 @@
 - [3. PORTABLE EXECUTABLE注入（PE注入、代码注入）](#3-portable-executable注入pe注入代码注入)
     - [3.1. 局限性](#31-局限性)
 - [4. PROCESS HOLLOWING技术（进程替换）](#4-process-hollowing技术进程替换)
+- [4.1. Process Doppelgänging](#41-process-doppelgänging)
 - [5. 线程执行劫持技术](#5-线程执行劫持技术)
 - [6. 通过SETWINDOWSHOOKEX进行HOOK注入](#6-通过setwindowshookex进行hook注入)
 - [7. 通过注册表实现注入和持久性](#7-通过注册表实现注入和持久性)
@@ -62,24 +63,23 @@
 * 函数体内switch语句中的case不要超过3个，否则编译器会使用跳转表，而这个跳转表并不位于函数体中
 # 4. PROCESS HOLLOWING技术（进程替换）
 恶意软件首先会创建一个新进程并挂起，之后，恶意软件通过调用ZwUnmapViewOfSection或NtUnmapViewOfSection来取消映射目标进程的内存，即卸下目标进程中的代码，之后执行VirtualAllocEx分配新内存，并使用WriteProcessMemory将恶意代码写入目标进程空间，之后利用SetThreadContext将入口点指向恶意代码。最后，恶意软件通过调用ResumeThread恢复挂起的线程，使进程退出挂起状态。
+# 4.1. Process Doppelgänging
+类似于PROCESS HOLLOWING，它通过攻击Windows NTFS运作机制和一个来自Windows进程载入器中的过时的应用。研究人员使用NTFS事务修改实际上不会写入到磁盘的可执行文件，之后使用未公开的进程加载机制实现详情来加载已修改的可执行文件，但不会在回滚已修改可执行文件前执行该操作，其结果是从已修改的可执行文件创建进程。不通过可疑进程和内存操作（例如SuspendProcess和NtUnmapViewOfSection），重写了事务（Transaction）上下文中的合法文件，之后从修改的文件（事务上下文中）创建Section，并从中创建了一个进程。当文件在事务中时，这些安全厂商不太可能扫描到文件。而由于回滚了事务，因此未留下任何活动踪迹。是因为恶意进程看起来合法，会正确映射到磁盘上的镜像文件，与任何合法进程没有区别，不存在安全产品通常会寻找的“未映射的代码”（ Unmapped Code）。实现“Process Doppelgänging”面临着大量技术挑战，攻击者需要了解进程创建的大量未公开细节。但是这种攻击无法通过打补丁修复解决，因为它利用的是基本功能和Windows进程加载机制的核心设计。
 # 5. 线程执行劫持技术
-这种技术类似与Process Hollowing，它以以进程的现有线程为目标。在通过CreateToolhelp32Snapshot和OpenThread获取目标线程的句柄后，恶意软件通过调用SuspandThread来挂起这个线程，然后调用VirtualAllocEx和WriteProcessMemory来分配内存并执行代码注入。代码可以包含shellcode，恶意DLL的路径以及LoadLibrary的地址。 为了劫持线程的执行，恶意软件通过调用SetThreadContext来修改目标线程的EIP寄存器（包含下一条指令的地址的寄存器）。之后，恶意软件恢复线程来执行它已写入主机进程的shellcode。由于在系统调用过程中挂起和恢复线程会导致系统崩溃，如果EIP寄存器在NTDLL.dll范围内，恶意软件会在稍后重新尝试注入。
+类似于PROCESS HOLLOWING，它以进程的现有线程为目标。在通过CreateToolhelp32Snapshot和OpenThread获取目标线程的句柄后，恶意软件通过调用SuspandThread来挂起这个线程，然后调用VirtualAllocEx和WriteProcessMemory来分配内存并执行代码注入。代码可以包含shellcode，恶意DLL的路径以及LoadLibrary的地址。 为了劫持线程的执行，恶意软件通过调用SetThreadContext来修改目标线程的EIP寄存器（包含下一条指令的地址的寄存器）。之后，恶意软件恢复线程来执行它已写入主机进程的shellcode。由于在系统调用过程中挂起和恢复线程会导致系统崩溃，如果EIP寄存器在NTDLL.dll范围内，恶意软件会在稍后重新尝试注入。
 # 6. 通过SETWINDOWSHOOKEX进行HOOK注入
 SetWindowsHookEx函数有四个参数。第一个参数是事件的类型。事件反映了HOOK类型的范围，从键盘上的按键（WH_KEYBOARD）到鼠标输入（WH_MOUSE），CBT等等。第二个参数是指向恶意软件想要在事件上调用的函数的指针。第三个参数是包含该函数的模块。因此，在调用SetWindowsHookEx之前，通常会看到对LoadLibrary和GetProcAddress的调用。此函数的最后一个参数是与HOOK过程相关联的线程。如果此值设置为零，则所有线程都会在触发事件时执行操作。但是，恶意软件通常针对一个线程以降低噪声，因此在SetWindowsHookEx之前也可以看到调用CreateToolhelp32Snapshot和Thread32Next来查找和定位单个线程。注入DLL后，恶意软件代表其threadId传递给SetWindowsHookEx函数的进程执行其恶意代码。
 # 7. 通过注册表实现注入和持久性
 ## 7.1. AppInit_DLLs
+此注册表项下的每个库都会加载到每个加载User32.dll的进程中。
 * HKLM\Software\Microsoft\Windows NT\CurrentVersion\Windows\Appinit_Dlls
 * HKLM\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Windows\Appinit_Dlls
-
-此注册表项下的每个库都会加载到每个加载User32.dll的进程中。
 ## 7.2. AppCertDlls
+此注册表项下的DLL会被加载到每个调用CreateProcess，CreateProcessAsUser，CreateProcessWithLogonW，CreateProcessWithTokenW和WinExec函数的进程中。
 * HKLM\System\CurrentControlSet\Control\Session Manager\AppCertDlls
-
-只是此注册表项下的DLL被加载到调用Win32 API函数CreateProcess，CreateProcessAsUser，CreateProcessWithLogonW，CreateProcessWithTokenW和WinExec的每个进程中。
 ## 7.3. 映像文件执行选项（IFEO）
-* HKLM\Software\Microsoft\Windows NT\currentversion\image file execution options
-
 开发人员可以在此注册表项下设置“调试器值”，每当启动可执行文件时，会启动调试器并附加。要使用此功能，你只需提供调试器的路径，并将其附加到要分析的可执行文件。
+* HKLM\Software\Microsoft\Windows NT\currentversion\image file execution options
 # 8. APC注入和ATOMBOMBING 
 恶意软件可以利用异步过程调用（APC）通过将其附加到目标线程的APC队列来强制另一个线程执行其特制代码。每个线程都有一个APC队列，它们等待目标线程进入可变状态时执行。如果线程调用SleepEx，SignalObjectAndWait，MsgWaitForMultipleObjectsEx，WaitForMultipleObjectsEx或WaitForSingleObjectEx函数，则线程进入可更改状态。恶意软件通常会查找处于可更改状态的任何线程，然后调用OpenThread和QueueUserAPC将APC排入线程。 QueueUserAPC有三个参数：
 * 目标线程的句柄;

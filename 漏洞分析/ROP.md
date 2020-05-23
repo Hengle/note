@@ -1,7 +1,7 @@
 <!-- TOC -->
 
 - [1. 概述](#1-概述)
-    - [1.1. 来源](#11-来源)
+    - [1.1. 参考资料](#11-参考资料)
     - [1.2. 程序流劫持（Control Flow Hijack）](#12-程序流劫持control-flow-hijack)
     - [1.3. 系统防御](#13-系统防御)
     - [1.4. ROP的概念](#14-rop的概念)
@@ -34,11 +34,13 @@
     - [9.2. pwntools](#92-pwntools)
     - [9.3. EDB](#93-edb)
     - [9.4. objdump](#94-objdump)
+- [10. 总结利用步骤](#10-总结利用步骤)
 
 <!-- /TOC -->
 # 1. 概述
-## 1.1. 来源
-本笔记来源于蒸米的《一步一步学ROP》系列文章。代码见：https://github.com/zhengmin1989/ROP_STEP_BY_STEP。
+## 1.1. 参考资料
+* 蒸米的《一步一步学ROP》系列文章
+* 《Linux PWN从入门到熟练》系列文章
 ## 1.2. 程序流劫持（Control Flow Hijack）
 通过程序流劫持（如栈溢出，格式化字符串攻击和堆溢出），攻击者可以控制PC指针从而执行目标代码。
 ## 1.3. 系统防御
@@ -286,14 +288,22 @@ p.interactive()
 * rp++: https://github.com/0vercl0k/rp
 ### 9.1.1. ROPgadget
 Kali Linux自带该款工具：
-* ROPgadget --binary libc.so.6 --only "pop|ret" | grep rdi、
+* ROPgadget --binary libc.so.6 --only "pop|ret" | grep rdi
+* ROPgadget --binary libc.so.6 --string '/bin/sh'
 ## 9.2. pwntools
 python库，可以极大的简化pwn的工作量。
 * 寻找bin文件中的字符串：next(ELF('libc.so.6').search('/bin/sh'))
-* 获取bin文件中函数地址：ELF('libc.so.6').symbols['system']
-* 寻找bin文件中plt表和got表中对应函数的地址：ELF('libc.so.6').plt['system']；ELF('libc.so.6').got['system']
+* 获取bin文件中函数地址（该地址为展开后函数实际地址，一般用于计算函数偏移）：ELF('libc.so.6').symbols['system']
+* 寻找bin文件中plt表和got表中对应函数的地址（plt利用方式为`call/jmp addr_plt`，got利用方式为`call/jmp [addr_got]`）：ELF('libc.so.6').plt['system']；ELF('libc.so.6').got['system']
 ## 9.3. EDB
 EDB调试器，Linux下的GUI调试器，对标OD。
 ## 9.4. objdump
 * 查看可执行文件中的plt表：`objdump -d -j .plt level2`
 * 查看可执行文件中的got表：`objdump -R level2`
+# 10. 总结利用步骤
+* 检查保护情况：check
+* 判断漏洞函数，如gets，scanf等
+* 计算目标变量的在堆栈中距离ebp的偏移
+* 分析是否已经载入了可以利用的函数，如system，execve等
+* 分析是否有字符串/bin/sh，如果没有的话可以利用gets、read等函数写入.bss段
+

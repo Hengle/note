@@ -34,7 +34,9 @@
     - [9.2. pwntools](#92-pwntools)
     - [9.3. EDB](#93-edb)
     - [9.4. objdump](#94-objdump)
-- [10. 总结利用步骤](#10-总结利用步骤)
+- [10. 思路总结](#10-思路总结)
+    - [10.1. 利用步骤](#101-利用步骤)
+    - [10.2. 方案表](#102-方案表)
 
 <!-- /TOC -->
 # 1. 概述
@@ -300,10 +302,17 @@ EDB调试器，Linux下的GUI调试器，对标OD。
 ## 9.4. objdump
 * 查看可执行文件中的plt表：`objdump -d -j .plt level2`
 * 查看可执行文件中的got表：`objdump -R level2`
-# 10. 总结利用步骤
+# 10. 思路总结
+## 10.1. 利用步骤
 * 检查保护情况：check
-* 判断漏洞函数，如gets，scanf等
+* 判断漏洞函数，如gets、scanf、read等（注意：gets函数读取输入以换行符结束，read函数则指定了读取长度）
 * 计算目标变量的在堆栈中距离ebp的偏移
 * 分析是否已经载入了可以利用的函数，如system，execve等
-* 分析是否有字符串/bin/sh，如果没有的话可以利用gets、read等函数写入.bss段
-
+* 分析是否有字符串/bin/sh，如果没有的话可以利用gets、read等函数写入.bss段（注意：gets函数读取输入以换行符结束，read函数则指定了读取长度）
+## 10.2. 方案表
+|PIE|Canary|DEP|system函数|/bin/sh字符串|gets等写入函数|其它条件|手法|
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+|No|No|||||程序中存在system('/bin/sh')调用|返回到system('/bin/sh')调用|
+|No|No|||存在||程序中存在pop_pop_pop_pop_int的gadgets和/bin/sh字符串|利用gasgets进入系统调用|
+|No|No||导入|存在|||返回到system函数，以/bin/sh字符串为参数|
+|No|No|||存在|导入|程序中存在pop_ret的gadgets|将/bin/sh字符串写入.bss段，利用pop_ret平衡堆栈，返回到system函数，以/bin/sh字符串为参数|

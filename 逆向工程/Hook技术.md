@@ -8,24 +8,28 @@
     - [2.2. lpk Hook](#22-lpk-hook)
     - [2.3. Inline Hook（API Hook）](#23-inline-hookapi-hook)
         - [2.3.1. 步骤](#231-步骤)
-        - [2.3.2. 拓展事项](#232-拓展事项)
+        - [2.3.2. 多线程环境](#232-多线程环境)
+        - [2.3.3. 其它事项](#233-其它事项)
     - [2.4. IAT Hook](#24-iat-hook)
-    - [2.5. SEH Hook](#25-seh-hook)
-    - [2.6. 实现全局Hook](#26-实现全局hook)
+    - [2.5. EAT Hook](#25-eat-hook)
+    - [2.6. SEH Hook](#26-seh-hook)
+    - [2.7. VEH Hook](#27-veh-hook)
+    - [2.8. VirtualFunctionHook](#28-virtualfunctionhook)
+    - [2.9. 实现全局Hook](#29-实现全局hook)
 - [3. Ring0层Hook](#3-ring0层hook)
     - [3.1. IRP Hook](#31-irp-hook)
     - [3.2. MSR Hook](#32-msr-hook)
     - [3.3. SSDT Hook](#33-ssdt-hook)
-    - [3.4. 步骤](#34-步骤)
-    - [3.5. 优缺点](#35-优缺点)
+        - [3.3.1. 步骤](#331-步骤)
+    - [3.4. 优缺点](#34-优缺点)
+    - [3.5. Object Hook](#35-object-hook)
     - [3.6. 修改页属性为可写的两种方法](#36-修改页属性为可写的两种方法)
         - [3.6.1. 通过页表基址修改页属性](#361-通过页表基址修改页属性)
         - [3.6.2. 修改CR0寄存器关闭页保护](#362-修改cr0寄存器关闭页保护)
-- [4. Hook方式](#4-hook方式)
-    - [4.1. 手动Hook](#41-手动hook)
-    - [4.2. Hook库](#42-hook库)
+- [4. Hook检测](#4-hook检测)
 - [5. Hook注意事项](#5-hook注意事项)
-    - [5.1. _declspec(naked)](#51-_declspecnaked)
+    - [5.1. Hook库](#51-hook库)
+    - [5.2. _declspec(naked)](#52-_declspecnaked)
 
 <!-- /TOC -->
 # 1. Hook分类
@@ -104,31 +108,42 @@ Inline Hook也可用于零环
 * 改写代码，重定向到Hook业务代码
     * Hook业务代码要保存寄存器环境，退出前恢复环境
     * Hook业务代码最后需要执行JMP、CALL指令被覆盖的代码，然后跳转回原代码（或者选择脱钩、调用、再挂钩）
-### 2.3.2. 拓展事项
+### 2.3.2. 多线程环境
+在多线程的情况下，频繁进行挂钩与脱钩操作可能会出现异常导致崩溃，解决方法如下（参见MHook库）
+* 使用原子操作：InterlockedExchange64
+* 先上信号量或者互斥锁
+* 先挂起其它线程并保证线程的IP指针不位于替换区域
+* 七字节Hook：一般来说，库函数第一行指令为`mov edi,edi`，且上方会存在五字节的空白字段，这七个字节微软设计用于热补丁。可以将第一行指令修改为跳转到五字节，五字节修改为跳转到我们的Hook函数
+### 2.3.3. 其它事项
 * 对于不同的CPU，替换的汇编代码有所区别
-* 替换汇编代码为非原子操作，多线程情况下可能出现异常导致崩溃，解决方法如下（参见MHook库）
-    * 先上互斥锁
-    * 先挂起其它线程并保证线程的IP指针不位于替换区域
 * 多核情况下的挂钩安全
 * 绕过Inline Hook检测
 ## 2.4. IAT Hook
 替换导入表中的函数地址来获取控制权。
-## 2.5. SEH Hook
+## 2.5. EAT Hook
+替换导出表中的函数地址来获取控制权。
+## 2.6. SEH Hook
 安装一个顶层SEH函数，并在函数开头插入触发异常代码，以此获取控制权。
-## 2.6. 实现全局Hook
+## 2.7. VEH Hook
+插入一个优先VEH函数，并在函数开头插入触发异常代码，以此获取控制权。
+## 2.8. VirtualFunctionHook
+替换C++虚函数表中的函数指针来获取控制权。
+## 2.9. 实现全局Hook
 挂钩NtResumeThread函数，对于所有新创建的进程都进行挂钩操作。但是NtResumeThread并不是创建进程才调用，所以需要先枚举系统进程一次，将系统进程中NtResumeThread都挂钩上，这样，之后每次触发钩子时先判断NtResumeThread是否已经被挂钩，如果没有则是创建新进程的调用。
 # 3. Ring0层Hook
 ## 3.1. IRP Hook
+
 ## 3.2. MSR Hook
+也称为SYSENTER-HOOK或者KiFastCallEntry-Hook，它通过修改SYSENTER_EIP_MSR寄存器，使其指向我们自己的函数，那么我们就可以在自己的的函数中对所有来自3环的函数调用进行第一手过滤。
 ## 3.3. SSDT Hook
 编写驱动加载至内核空间，将驱动中的我们自己的函数地址替换到SSDT中，应用层调用API后，最后会拐到我们自己的函数中，达到Hook的目的。
-## 3.4. 步骤
+### 3.3.1. 步骤
 * 找到系统服务表中的函数地址表：定义一下系统服务表的结构体，然后通过extern关键词导入内核文件导出的KeServiceDescriptorTable变量，即可获取系统服务表中的函数地址表（KeServiceDescriptorTableShadow未导出，需要用一些非公开的方法来定位此地址，通常都是采用硬性编码的，没有系统适应性）
 * 通过全局变量保存原来的系统服务表中的函数地址，用于日后脱钩
 * 编写准备用于替换的函数：参数需要保持一致，在替换函数中，需要完成本来函数的功能（将原函数地址转换为带参数的函数指针类型并根据参数调用）
 * 修改页属性为可写并修改系统服务表中的函数地址为替换函数的地址
 * 驱动卸载前脱钩（可选）
-## 3.5. 优缺点
+## 3.4. 优缺点
 * 优点
     * 简单
     * 稳定
@@ -136,6 +151,8 @@ Inline Hook也可用于零环
     * 容易被检测到，被绕过
     * 只能HOOK存在于SSDT中的函数
     * 在64位的系统下基本无法工作，除非你能跨过微软的安全防护，目前还没有人破解WIN8.1
+## 3.5. Object Hook
+
 ## 3.6. 修改页属性为可写的两种方法
 ### 3.6.1. 通过页表基址修改页属性
 ```c
@@ -178,15 +195,19 @@ VOID PageProtectOff()
     }
 }
 ```
-# 4. Hook方式
-## 4.1. 手动Hook
-* Ring0 Hook
-* Dll注入
-## 4.2. Hook库
+# 4. Hook检测
+* HOOK修改的是内存中的数据，本地文件却没有修改。可以将本地文件加载到内存中，然后进行对比。
+* 对内存模块进行CRC校验。
+* 设置回调函数，检测某个IAT或者函数的前几个指令是否被修改。
+* 对VirtualProtect函数和WriteProcess函数进行HOOK，检测修改内容的合法性。
+* 利用PsSetCreateProcessNotifyRoutineEx注册回调函数，监控进程创建，对比特定的进程，如果创建，设置创建标志为假，创建失败。
+* 利用PsSetCreateThreadNotifyRoutine注册回调函数，监控线程创建，通过进程路径.找到对应进程名.判断是否符合，如果是的话.找到回调函数地址( pWin32Address = (UCHAR**)((UCHAR)Thread + 0x410);)并改为C3。
+* 利用PsSetLoadImageNotifyRoutine拦截模块，首先需要获取模块基地址(让其载入)，PE寻找基地址，解析到OEP，修改oep为ret即可。
+# 5. Hook注意事项
+## 5.1. Hook库
 * EasyHook，支持Ring0（不够稳定）和Ring3，该库对多线程未进行处理
 * Mhook，只支持Ring3
-# 5. Hook注意事项
-## 5.1. _declspec(naked)
+## 5.2. _declspec(naked)
 就是告诉编译器，在编译的时候，不要优化代码，不要添加额外代码来控制堆栈平衡，一切代码都需要自己来写，防止破坏被Hook函数的堆栈或者导致堆栈不平衡。
 ```c
 #define NAKED __declspec(naked)

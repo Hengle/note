@@ -10,13 +10,13 @@
 #单用户
 #vi ~/.bashrc
 #全局
-vi /etc/bashrc
+vi /etc/.bashrc
 #alias ...
 #将命令写入文件
 #执行以下命令或者重启以生效
 #单用户
 #source ~/.bashrc
-source /etc/bashrc
+source /etc/.bashrc
 ```
 # 2. 一些好用的alisa
 ```bash

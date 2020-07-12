@@ -130,9 +130,8 @@ EDB调试器，Linux下的GUI调试器，对标OD。
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 ||No|No|||||程序中存在system('/bin/sh')调用|返回到system('/bin/sh')调用|
 ||No|No|||存在||程序中存在pop_pop_pop_pop_int的gadgets和/bin/sh字符串|利用gasgets进入系统调用|
-||No|No||导入|存在|||返回到system函数，以/bin/sh字符串为参数|
-||No|No|||存在|导入|程序中存在pop_ret的gadgets|将/bin/sh字符串写入.bss段，利用pop_ret平衡堆栈，返回到system函数，以/bin/sh字符串为参数|
-||No|No|开启|导入|存在||不开启ASLR|返回到system函数，以/bin/sh字符串为参数|
+||No|No||导入|存在|||返回到plt中的system函数，以/bin/sh字符串为参数|
+||No|No||未导入|存在|导入|程序中存在pop_ret的gadgets|将/bin/sh字符串写入.bss段，利用pop_ret平衡堆栈，返回到system函数，以/bin/sh字符串为参数|
 |不开启||No|No|||||利用库中的JMP ESP指令，返回栈中执行|
 ||No|No|No|||||利用程序本体中的JMP ESP指令，返回栈中执行|
 |开启|No|No|开启|存在|存在||拥有目标程序so库|通过plt或got中的write函数打印so库中某些函数地址，通过偏移计算出`system`函数和`/bin/sh`字符串在内存中的地址|

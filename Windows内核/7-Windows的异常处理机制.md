@@ -9,7 +9,7 @@
 - [2. 记录异常信息](#2-记录异常信息)
     - [2.1. 异常类型代码](#21-异常类型代码)
     - [2.2. 模拟异常的特殊填充](#22-模拟异常的特殊填充)
-- [3. 异常分发](#3-异常分发)
+- [3. 异常分发：KiDispatchException](#3-异常分发kidispatchexception)
     - [3.1. 异常回调函数在哪里](#31-异常回调函数在哪里)
     - [3.2. KiDispatchException](#32-kidispatchexception)
     - [3.3. 用户态分发：KiUserExceptionDispatcher](#33-用户态分发kiuserexceptiondispatcher)
@@ -57,17 +57,16 @@ throw关键词和CxxThrowException为C语言的模拟异常特征，其它编程
 ![Code](../photo/ExceptionCode.jpg)
 ## 2.2. 模拟异常的特殊填充
 模拟异常在填充ExceptionRecord结构体的时候，ExceptionCode为一个固定值，该值依赖于编译环境；ExceptionAddress也是固定值，为RaiseException函数的地址。
-# 3. 异常分发
+# 3. 异常分发：KiDispatchException
 ## 3.1. 异常回调函数在哪里
 SEH是线程相关的，也就是说每个线程有它自己的异常处理回调函数。通过当前线程的FS:[0]可以找到TEB，进而找到一个_EXCEPTION_REGISTRATION_RECORD结构体链表（该结构一般位于栈中，零环和三环均使用该结构体，一个结构体对应一个异常处理函数），操作系统遍历该链表，以查找一个同意处理该异常的结构体（通过返回值表达是否同意处理），只要找到一个处理异常的函数，就会停止遍历。
 ![ExceptionList](../photo/ExceptionList.jpg)
 ## 3.2. KiDispatchException
 所有类型的异常均通过KiDispatchException函数分发。
-![KiDispatchException](../photo/KiDispatchException.jpg)
+![KiDispatchException](../photo/KiDispatchException.png)
 
-* 用户模式第一次机会，会优先调用内核调试器，如果不存在内核调试器或者内核调试器未处理，才会调用DbgkForwardException（汇编代码分析得知）
 * 内核RtlDispatchException会遍历存于fs:[0]的内核异常链表调用异常处理函数
-* KeBugCheckEx即为蓝屏
+* 返回三环时，EIP指向KiUserExceptionDispatcher，进行用户态的分发
 ## 3.3. 用户态分发：KiUserExceptionDispatcher
 ```c
 //伪代码

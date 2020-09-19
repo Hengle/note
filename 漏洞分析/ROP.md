@@ -58,7 +58,8 @@ gdb xxx /tmp/core.xxx
 * shell指令：`echo 0 > /proc/sys/kernel/randomize_va_space`，用于关闭ASLR，设置为2为启用ASLR
 * GCC编译选项：`-no-pie`，用于关闭PIE（程序基址版本的ASLR）
 ## 2.3. 将程序绑定到端口：SOCAT
-`socat TCP4-LISTEN:10001,fork EXEC:./level1`，SOCAT可以将目标程序作为一个服务绑定到服务器的某个端口上
+* `socat TCP4-LISTEN:10001,fork EXEC:./level1`，SOCAT可以将目标程序作为一个服务绑定到服务器的某个端口上
+* xinetd
 ## 2.4. 32位库
 如果要在64位环境下调试32位程序，需要安装32位相关的库函数：
 ```bash
@@ -88,6 +89,7 @@ shellcode += "\x68\x68\x2f\x62\x69\x6e\x89\xe3\xb0"
 shellcode += "\x0b\xcd\x80"
 ```
 ### 2.5.2. 64位
+syscall
 # 3. 工具
 ## 3.1. gadgets工具
 * objdump（可用于寻找简单gadgets）：kali Linux自带
@@ -105,6 +107,9 @@ python库，可以极大的简化pwn的工作量。
 * 获取bin文件中函数地址（该地址为展开后函数实际地址，一般用于计算函数偏移）：ELF('libc.so.6').symbols['system']
 * 寻找bin文件中plt表和got表中对应函数的地址（plt利用方式为`call/jmp addr_plt`，got利用方式为`call/jmp [addr_got]`）：ELF('libc.so.6').plt['system']；ELF('libc.so.6').got['system']
 * 内存泄露：可用于获取函数地址，无法获取字符串
+* 可以直接让GDB附加到程序上
+* 可以直接编译汇编代码（需要指定平台类型如i386，`context.arch = "i386"`）
+* 可以通过`context.log_level = "debug"`来输出debug日志
 ## 3.3. EDB
 EDB调试器，Linux下的GUI调试器，对标OD。
 ## 3.4. objdump

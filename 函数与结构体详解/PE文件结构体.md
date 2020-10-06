@@ -22,45 +22,45 @@
 # 1. DOS头
 ```
 IMAGE_DOS_HEADER STRUCT 
-+00h WORD e_magic      // Magic DOS signature MZ(4Dh 5Ah)   DOS可执行文件标记，恒定为4D 5A（MZ），IMAGE_DOS_SIGNATURE
-+02h WORD e_cblp       // Bytes on last page of file  
-+04h WORD e_cp         // Pages in file
-+06h WORD e_crlc       // Relocations
-+08h WORD e_cparhdr    // Size of header in paragraphs
-+0ah WORD e_minalloc   // Minimun extra paragraphs needs
-+0ch WORD e_maxalloc   // Maximun extra paragraphs needs
-+0eh WORD e_ss         // intial(relative)SS value   DOS代码的初始化堆栈SS 
-+10h WORD e_sp         // intial SP value   DOS代码的初始化堆栈指针SP 
-+12h WORD e_csum       // Checksum 
-+14h WORD e_ip         // intial IP value   DOS代码的初始化指令入口[指针IP] 
-+16h WORD e_cs         // intial(relative)CS value   DOS代码的初始堆栈入口 CS
-+18h WORD e_lfarlc     // File Address of relocation table 
-+1ah WORD e_ovno       // Overlay number
-+1ch WORD e_res[4]     // Reserved words 
-+24h WORD e_oemid      // OEM identifier(for e_oeminfo) 
-+26h WORD e_oeminfo    // OEM information;e_oemid specific  
-+29h WORD e_res2[10]   // Reserved words 
-+3ch LONG e_lfanew     // Offset to start of PE header   指向PE文件头 
+  +00h WORD e_magic      // Magic DOS signature MZ(4Dh 5Ah)   DOS可执行文件标记，恒定为4D 5A（MZ），IMAGE_DOS_SIGNATURE
+  +02h WORD e_cblp       // Bytes on last page of file  
+  +04h WORD e_cp         // Pages in file
+  +06h WORD e_crlc       // Relocations
+  +08h WORD e_cparhdr    // Size of header in paragraphs
+  +0ah WORD e_minalloc   // Minimun extra paragraphs needs
+  +0ch WORD e_maxalloc   // Maximun extra paragraphs needs
+  +0eh WORD e_ss         // intial(relative)SS value   DOS代码的初始化堆栈SS 
+  +10h WORD e_sp         // intial SP value   DOS代码的初始化堆栈指针SP 
+  +12h WORD e_csum       // Checksum 
+  +14h WORD e_ip         // intial IP value   DOS代码的初始化指令入口[指针IP] 
+  +16h WORD e_cs         // intial(relative)CS value   DOS代码的初始堆栈入口 CS
+  +18h WORD e_lfarlc     // File Address of relocation table 
+  +1ah WORD e_ovno       // Overlay number
+  +1ch WORD e_res[4]     // Reserved words 
+  +24h WORD e_oemid      // OEM identifier(for e_oeminfo) 
+  +26h WORD e_oeminfo    // OEM information;e_oemid specific  
+  +29h WORD e_res2[10]   // Reserved words 
+  +3ch LONG e_lfanew     // Offset to start of PE header   指向PE文件头 
 IMAGE_DOS_HEADER ENDS
 ```
 # 2. PE头
 ```
 IMAGE_NT_HEADERS STRUCT 
-+00h DWORD Signature                            // PE文件标识，恒定为50 45 00 00（PE）
-+04h IMAGE_FILE_HEADER FileHeader
-+18h IMAGE_OPTIONAL_HEADER32 OptionalHeader  
+  +00h DWORD Signature                            // PE文件标识，恒定为50 45 00 00（PE）
+  +04h IMAGE_FILE_HEADER FileHeader
+  +18h IMAGE_OPTIONAL_HEADER32 OptionalHeader  
 IMAGE_NT_HEADERS ENDS
 ```
 ## 2.1. IMAGE_FILE_HEADER
 ```
 IMAGE_FILE_HEADER STRUCT
-+04h WORD  Machine;               // 运行平台
-+06h WORD  NumberOfSections;      // 文件的区块数目，区块表紧跟在IMAGE_NT_HEADERS后边
-+08h DWORD TimeDateStamp;         // 文件创建日期和时间，采用1970/01/01以来的格林威治时间（GMT）计算的秒数
-+0Ch DWORD PointerToSymbolTable;  // COFF符号表（用于调试）的文件偏移位置，现在基本没用了
-+10h DWORD NumberOfSymbols;       // COFF符号表中的符号数目，COFF符号是一个大小固定的结构，如果想找到COFF 符号表的结束位置，则需要这个变量
-+14h WORD  SizeOfOptionalHeader;  // IMAGE_OPTIONAL_HEADER32结构大小，对于32位PE文件，这个值通常是00E0h；对于64位PE32+文件，这个值是00F0h
-+16h WORD  Characteristics;       // 文件属性
+  +04h WORD  Machine;               // 运行平台
+  +06h WORD  NumberOfSections;      // 文件的区块数目，区块表紧跟在IMAGE_NT_HEADERS后边
+  +08h DWORD TimeDateStamp;         // 文件创建日期和时间，采用1970/01/01以来的格林威治时间（GMT）计算的秒数
+  +0Ch DWORD PointerToSymbolTable;  // COFF符号表（用于调试）的文件偏移位置，现在基本没用了
+  +10h DWORD NumberOfSymbols;       // COFF符号表中的符号数目，COFF符号是一个大小固定的结构，如果想找到COFF 符号表的结束位置，则需要这个变量
+  +14h WORD  SizeOfOptionalHeader;  // IMAGE_OPTIONAL_HEADER32结构大小，对于32位PE文件，这个值通常是00E0h；对于64位PE32+文件，这个值是00F0h
+  +16h WORD  Characteristics;       // 文件属性
 IMAGE_FILE_HEADER ENDS
 ```
 ### 2.1.1. Machine
@@ -93,37 +93,37 @@ IMAGE_FILE_HEADER ENDS
 以下偏移以IMAGE_NT_HEADERS为基准。
 ```
 IMAGE_OPTIONAL_HEADER32 STRUCT
-+18h WORD   Magic;                  // 标志字, ROM 映像（0107h）,普通可执行文件（010Bh）
-+1Ah BYTE   MajorLinkerVersion;     // 链接程序的主版本号
-+1Bh BYTE   MinorLinkerVersion;     // 链接程序的次版本号
-+1Ch DWORD SizeOfCode;              // 所有含代码的节的总大小
-+20h DWORD SizeOfInitializedData;   // 所有含已初始化数据的节的总大小
-+24h DWORD SizeOfUninitializedData; // 所有含未初始化数据的节的大小
-+28h DWORD AddressOfEntryPoint;     // 程序执行入口RVA
-+2Ch DWORD BaseOfCode;              // 代码的区块的起始RVA
-+30h DWORD BaseOfData;              // 数据的区块的起始RVA
-+34h DWORD ImageBase;               // 程序的首选装载地址
-+38h DWORD SectionAlignment;        // 内存中的区块的对齐大小
-+3Ch DWORD FileAlignment;           // 文件中的区块的对齐大小
-+40h WORD  MajorOperatingSystemVersion;  // 要求操作系统最低版本号的主版本号
-+42h WORD  MinorOperatingSystemVersion;  // 要求操作系统最低版本号的副版本号
-+44h WORD  MajorImageVersion;       // 可运行于操作系统的主版本号
-+46h WORD  MinorImageVersion;       // 可运行于操作系统的次版本号
-+48h WORD  MajorSubsystemVersion;   // 要求最低子系统版本的主版本号
-+4Ah WORD  MinorSubsystemVersion;   // 要求最低子系统版本的次版本号
-+4Ch DWORD Win32VersionValue;       // 莫须有字段，不被病毒利用的话一般为0
-+50h DWORD SizeOfImage;             // 映像装入内存后的总尺寸
-+54h DWORD SizeOfHeaders;           // 所有头 + 区块表的尺寸大小
-+58h DWORD CheckSum;                // 映像的校检和
-+5Ch WORD  Subsystem;               // 可执行文件期望的子系统
-+5Eh WORD  DllCharacteristics;      // DllMain()函数何时被调用，默认为 0
-+60h DWORD SizeOfStackReserve;      // 初始化时的栈大小
-+64h DWORD SizeOfStackCommit;       // 初始化时实际提交的栈大小
-+68h DWORD SizeOfHeapReserve;       // 初始化时保留的堆大小
-+6Ch DWORD SizeOfHeapCommit;        // 初始化时实际提交的堆大小
-+70h DWORD LoaderFlags;             // 与调试有关，默认为 0
-+74h DWORD NumberOfRvaAndSizes;     // 下边数据目录的项数，这个字段自Windows NT 发布以来一直是16
-+78h IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];  // 数据目录表，指向多种不同用途的数据块
+  +18h WORD   Magic;                  // 标志字, ROM 映像（0107h）,普通可执行文件（010Bh）
+  +1Ah BYTE   MajorLinkerVersion;     // 链接程序的主版本号
+  +1Bh BYTE   MinorLinkerVersion;     // 链接程序的次版本号
+  +1Ch DWORD SizeOfCode;              // 所有含代码的节的总大小
+  +20h DWORD SizeOfInitializedData;   // 所有含已初始化数据的节的总大小
+  +24h DWORD SizeOfUninitializedData; // 所有含未初始化数据的节的大小
+  +28h DWORD AddressOfEntryPoint;     // 程序执行入口RVA
+  +2Ch DWORD BaseOfCode;              // 代码的区块的起始RVA
+  +30h DWORD BaseOfData;              // 数据的区块的起始RVA
+  +34h DWORD ImageBase;               // 程序的首选装载地址
+  +38h DWORD SectionAlignment;        // 内存中的区块的对齐大小
+  +3Ch DWORD FileAlignment;           // 文件中的区块的对齐大小
+  +40h WORD  MajorOperatingSystemVersion;  // 要求操作系统最低版本号的主版本号
+  +42h WORD  MinorOperatingSystemVersion;  // 要求操作系统最低版本号的副版本号
+  +44h WORD  MajorImageVersion;       // 可运行于操作系统的主版本号
+  +46h WORD  MinorImageVersion;       // 可运行于操作系统的次版本号
+  +48h WORD  MajorSubsystemVersion;   // 要求最低子系统版本的主版本号
+  +4Ah WORD  MinorSubsystemVersion;   // 要求最低子系统版本的次版本号
+  +4Ch DWORD Win32VersionValue;       // 莫须有字段，不被病毒利用的话一般为0
+  +50h DWORD SizeOfImage;             // 映像装入内存后的总尺寸
+  +54h DWORD SizeOfHeaders;           // 所有头 + 区块表的尺寸大小
+  +58h DWORD CheckSum;                // 映像的校检和
+  +5Ch WORD  Subsystem;               // 可执行文件期望的子系统
+  +5Eh WORD  DllCharacteristics;      // DllMain()函数何时被调用，默认为 0
+  +60h DWORD SizeOfStackReserve;      // 初始化时的栈大小
+  +64h DWORD SizeOfStackCommit;       // 初始化时实际提交的栈大小
+  +68h DWORD SizeOfHeapReserve;       // 初始化时保留的堆大小
+  +6Ch DWORD SizeOfHeapCommit;        // 初始化时实际提交的堆大小
+  +70h DWORD LoaderFlags;             // 与调试有关，默认为 0
+  +74h DWORD NumberOfRvaAndSizes;     // 下边数据目录的项数，这个字段自Windows NT 发布以来一直是16
+  +78h IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];  // 数据目录表，指向多种不同用途的数据块
 IMAGE_OPTIONAL_HEADER32 ENDS
 ```
 ## 2.3. Subsystem
@@ -141,51 +141,51 @@ IMAGE_OPTIONAL_HEADER32 ENDS
 每个项的结构如下
 ```
 IMAGE_DATA_DIRECTORY STRUCT
-VirtualAddress DWORD ?    ;数据的起始RVA
-isize DWORD ?    ;数据块的长度
+  +0x0 DWORD VirtualAddress      // 数据的起始RVA
+  +0x4 DWORD isize               // 数据块的长度
 IMAGE_DATA_DIRECTORY END
 ```
 所有项目如下，以下偏移以IMAGE_NT_HEADERS为基准。
 ```
-0x78 DWORD EXPORT          // 导出表
-0x7C DWORD
-0x80 DWORD IMPORT          // 导出表
-0x84 DWORD
-0x88 DWORD RESOURCE        // 资源
-0x8C DWORD
-0x90 DWORD EXCEPTION       // 异常
-0x94 DWORD
-0x98 DWORD SECURITY        // 安全
-0x9C DWORD
-0xA0 DWORD BASERELOC       // 重定位
-0xA4 DWORD
-0xA8 DWORD DEBUG           // 调试
-0xAC DWORD
-0xB0 DWORD COPYRIGHT       // 描述字串
-0xB4 DWORD
-0xB8 DWORD GLOBALPTR       // RVA to be used as Global Pointer (IA-64 only)
-0xBC DWORD
-0xC0 DWORD TLS             // TLS
-0xC4 DWORD
-0xC8 DWORD LOAD_CONFIG     // 载入配置
-0xCC DWORD
-0xD0 DWORD BOUND_IMPORT    // 绑定导入表
-0xD4 DWORD
-0xD8 DWORD IAT             // 导入地址表
-0xDC DWORD
-0xE0 DWORD DELAY_IMPORT    // 延迟载入描述
-0xE4 DWORD
-0xE8 DWORD COM_DESCRIPTOR  // COM信息
-0xEC DWORD
-0xF0 DWORD Reserved        // 保留
-0xF4 DWORD
+  0x78 DWORD EXPORT          // 导出表
+  0x7C DWORD
+  0x80 DWORD IMPORT          // 导出表
+  0x84 DWORD
+  0x88 DWORD RESOURCE        // 资源
+  0x8C DWORD
+  0x90 DWORD EXCEPTION       // 异常
+  0x94 DWORD
+  0x98 DWORD SECURITY        // 安全
+  0x9C DWORD
+  0xA0 DWORD BASERELOC       // 重定位
+  0xA4 DWORD
+  0xA8 DWORD DEBUG           // 调试
+  0xAC DWORD
+  0xB0 DWORD COPYRIGHT       // 描述字串
+  0xB4 DWORD
+  0xB8 DWORD GLOBALPTR       // RVA to be used as Global Pointer (IA-64 only)
+  0xBC DWORD
+  0xC0 DWORD TLS             // TLS
+  0xC4 DWORD
+  0xC8 DWORD LOAD_CONFIG     // 载入配置
+  0xCC DWORD
+  0xD0 DWORD BOUND_IMPORT    // 绑定导入表
+  0xD4 DWORD
+  0xD8 DWORD IAT             // 导入地址表
+  0xDC DWORD
+  0xE0 DWORD DELAY_IMPORT    // 延迟载入描述
+  0xE4 DWORD
+  0xE8 DWORD COM_DESCRIPTOR  // COM信息
+  0xEC DWORD
+  0xF0 DWORD Reserved        // 保留
+  0xF4 DWORD
 ```
 # 3. 节表
 ## 3.1. 结构体
 节表位于IMAGE_NT_HEADERS之后。由一系列的IMAGE_SECTION_HEADER结构排列而成，每个结构用来描述一个节，结构的排列顺序和它们描述的节在文件中的排列顺序是一致的。全部有效结构的最后以一个空的IMAGE_SECTION_HEADER结构作为结束。
 ```
 typedef struct _IMAGE_SECTION_HEADER {
-    +0x0    BYTE    Name[IMAGE_SIZEOF_SHORT_NAME]; // 节名称，前边带有“$” 的相同名字的区块在载入时候将会被合并，在合并之后的区块中，他们是按照“$” 后边的字符的字母顺序进行合并的。
+    +0x0    BYTE    Name[IMAGE_SIZEOF_SHORT_NAME]; // 节名称，前边带有“$” 的相同名字的区块在载入时候将会按照“$” 后边的字符的字母顺序进行合并
     +0x8    union {
                 DWORD   PhysicalAddress; 
                 DWORD   VirtualSize;        // 在内存中实际占用的大小，当前节数据内存中文件对齐前的真实尺寸
@@ -237,36 +237,36 @@ struct _IMAGE_IMPORT_DESCRIPTOR {
 ## 4.1. IMAGE_THUNK_DATA
 ```
 struct _IMAGE_THUNK_DATA{
-    union {
+  +0x0 union {
         DWORD ForwarderString     // 只有当IMAGE_IMPORT_DESCRIPTOR中的ForwarderChain有值时，它才有效
         DWORD Function            // 函数的实际内存地址，只有在载入内存中时才有效
-        DWORD Ordinal             // 当IMAGE_THUNK_DATA值的最高位为1时，表示函数以序号方式输入，这时候低31位被看作一个函数序号
-        DWORD AddressOfData       // 当IMAGE_THUNK_DATA值的最高位为0时，表示函数以字符串类型的函数名方式输入，这时双字的值是一个RVA，指向一个IMAGE_IMPORT_BY_NAME结构
-    }u1;
+        DWORD Ordinal             // 最高位为1时，表示函数以序号方式输入，这时候低31位被看作一个函数序号
+        DWORD AddressOfData       // 最高位为0时，表示函数以字符串类型的函数名方式输入，该值是一个RVA，指向一个IMAGE_IMPORT_BY_NAME结构
+     }u1;
 }IMAGE_THUNK_DATA32;
 ```
 ### 4.1.1. _IMAGE_IMPORT_BY_NAME
 ```
 struct _IMAGE_IMPORT_BY_NAME {
-    WORD    Hint;                 // 指出函数在所在的dll的输出表中的序号
-    BYTE    Name[1];              // 指出要输入的函数的函数名
+  +0x0 WORD    Hint;                 // 指出函数在所在的dll的输出表中的序号
+  +0x2 BYTE    Name[1];              // 指出要输入的函数的函数名
 } IMAGE_IMPORT_BY_NAME, *PIMAGE_IMPORT_BY_NAME;
 ```
 # 5. 导出表
 ```
 IMAGE_EXPORT_DIRECTORY STRUCT
 {
-    +00h DWORD Characteristics        // 未使用，总是定义为0
-    +04h DWORD TimeDateStamp          // 文件生成时间
-    +08h WORD MajorVersion            // 未使用，总是定义为0
-    +0Ah WORD MinorVersion            // 未使用，总是定义为0
-    +0Ch DWORD Name                   // 模块的真实名称，编译时写入
-    +10h DWORD Base                   // 基数，加上序数就是函数地址数组的索引值
-    +14h DWORD NumberOfFunctions      // 导出函数的总数
-    +18h DWORD NumberOfNames          // 以名称方式导出的函数的总数，该字段的值只会小于或者等于NumberOfFunctions
-    +1Ch DWORD AddressOfFunctions     // 指向输出函数地址的RVA数组
-    +20h DWORD AddressOfNames         // 指向输出函数名字的RVA数组
-    +24h DWORD AddressOfNameOrdinals  // 指向输出函数序号的RVA数组
+  +00h DWORD Characteristics        // 未使用，总是定义为0
+  +04h DWORD TimeDateStamp          // 文件生成时间
+  +08h WORD MajorVersion            // 未使用，总是定义为0
+  +0Ah WORD MinorVersion            // 未使用，总是定义为0
+  +0Ch DWORD Name                   // 模块的真实名称，编译时写入
+  +10h DWORD Base                   // 基数，加上序数就是函数地址数组的索引值
+  +14h DWORD NumberOfFunctions      // 导出函数的总数
+  +18h DWORD NumberOfNames          // 以名称方式导出的函数的总数，该字段的值只会小于或者等于NumberOfFunctions
+  +1Ch DWORD AddressOfFunctions     // 指向输出函数地址的RVA数组
+  +20h DWORD AddressOfNames         // 指向输出函数名字的RVA数组
+  +24h DWORD AddressOfNameOrdinals  // 指向输出函数序号的RVA数组
 };IMAGE_EXPORT_DIRECTORY ENDS
 ```
 # 6. 重定位表
@@ -285,7 +285,7 @@ TypeOffset高位字节的代码定义：
   0x1 IMAGE_REL_BASED_HIGH       // 高16位必须应用于偏移量所指高字16位
   0x2 IMAGE_REL_BASED_LOW        // 低16位必须应用于偏移量所指低字16位
   0x3 IMAGE_REL_BASED_HIGHLOW    // 全部32位应用于所有32位
-  0x4 IMAGE_REL_BASED_HIGHADJ    // 需要32位，高16位为 偏移量，低16位为下一个偏移量数组元素，组合为一个带符号数，加上32位的一个数，然后加上8000，把高16位保存在偏移量的16位域内
+  0x4 IMAGE_REL_BASED_HIGHADJ    // 需要32位，高16位为偏移量，低16位为下一个偏移量数组元素，组合为一个带符号数，加上32位的一个数，然后加上8000，把高16位保存在偏移量的16位域内
   0x5 IMAGE_REL_BASED_MIPS_JMPADDR // Unknown
   0x6 IMAGE_REL_BASED_SECTION      // Unknown
   0x7 IMAGE_REL_BASED_REL32        // Unknown
@@ -303,7 +303,7 @@ IMAGE_RESOURCE_DIRECTORY STRUCT    // 其中结构体中的成员指出的RVA偏
   +0Eh WORD NumberOfIdEntries      // 以ID（整型数字）命名的入口数量
 };IMAGE_RESOURCE_DIRECTORY ENDS
 
-IMAGE_RESOURCE_DIRECTORY_ENTRY STRUCT
+IMAGE_RESOURCE_DIRECTORY_ENTRY STRUCT  // 该结构的偏移以节点头为基准
 {
   +10h DWORD Name           // 第一层目录时，代表资源类型
                             // 第二层目录时，代表资源名称；最高位为0时，低位为ID值；最高位为1时，低位为字符串（IMAGE_RESOURCE_DIR_STRING_U）
@@ -312,10 +312,10 @@ IMAGE_RESOURCE_DIRECTORY_ENTRY STRUCT
 };IMAGE_RESOURCE_DIRECTORY_ENTRY ENDS
 
 typedef struct _IMAGE_RESOURCE_DATA_ENTRY {
-    DWORD   OffsetToData          // 资源数据的RVA
-    DWORD   Size                  // 资源数据的长度
-    DWORD   CodePage              // 代码页, 一般为0
-    DWORD   Reserved              // 保留字段
+  +0x0 DWORD   OffsetToData          // 资源数据的RVA
+  +0x4 DWORD   Size                  // 资源数据的长度
+  +0x8 DWORD   CodePage              // 代码页, 一般为0
+  +0xC DWORD   Reserved              // 保留字段
 } IMAGE_RESOURCE_DATA_ENTRY, *PIMAGE_RESOURCE_DATA_ENTRY;
 
 IMAGE_RESOURCE_DIR_STRING_U STRUCT

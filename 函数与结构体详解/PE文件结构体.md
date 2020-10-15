@@ -47,8 +47,8 @@ IMAGE_DOS_HEADER ENDS
 ```
 IMAGE_NT_HEADERS STRUCT 
   +00h DWORD Signature                            // PE文件标识，恒定为50 45 00 00（PE）
-  +04h IMAGE_FILE_HEADER FileHeader
-  +18h IMAGE_OPTIONAL_HEADER32 OptionalHeader  
+  +04h IMAGE_FILE_HEADER FileHeader               // 标准PE头
+  +18h IMAGE_OPTIONAL_HEADER32 OptionalHeader     // 拓展PE头
 IMAGE_NT_HEADERS ENDS
 ```
 ## 2.1. IMAGE_FILE_HEADER
@@ -65,6 +65,7 @@ IMAGE_FILE_HEADER ENDS
 ```
 ### 2.1.1. Machine
 ```
+0x0000                            // 任意平台
 0x014C IMAGE_FILE_MACHINE_I386    // x86
 0x0200 IMAGE_FILE_MACHINE_IA64    // Intel Itanium
 0x8664 IMAGE_FILE_MACHINE_AMD64   // x64
@@ -74,34 +75,34 @@ IMAGE_FILE_HEADER ENDS
 与运算获取。
 ```
 0x0001 IMAGE_FILE_RELOCS_STRIPPED     // 禁止重定位，必须从指定基地址加载，若地址被占用，则报错
-0x0002 IMAGE_FILE_EXECUTABLE_IMAGE    // The file is executable (there are no unresolved external references).
-0x0004 IMAGE_FILE_LINE_NUMS_STRIPPED  // COFF line numbers were stripped from the file.
-0x0008 IMAGE_FILE_LOCAL_SYMS_STRIPPED // COFF symbol table entries were stripped from file.
-0x0010 IMAGE_FILE_AGGRESIVE_WS_TRIM   // Aggressively trim the working set. This value is obsolete.
-0x0020 IMAGE_FILE_LARGE_ADDRESS_AWARE // The application can handle addresses larger than 2 GB.
-0x0080 IMAGE_FILE_BYTES_REVERSED_LO   // The bytes of the word are reversed. This flag is obsolete.
-0x0100 IMAGE_FILE_32BIT_MACHINE       // The computer supports 32-bit words.
-0x0200 IMAGE_FILE_DEBUG_STRIPPED      // Debugging information was removed and stored separately in another file.
-0x0400 IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP // If the image is on removable media, copy it to and run it from the swap file.
-0x0800 IMAGE_FILE_NET_RUN_FROM_SWAP       // If the image is on the network, copy it to and run it from the swap file.
-0x1000 IMAGE_FILE_SYSTEM                  // The image is a system file.
-0x2000 IMAGE_FILE_DLL                 // The image is a DLL file. While it is an executable file, it cannot be run directly.
-0x4000 IMAGE_FILE_UP_SYSTEM_ONLY      // The file should be run only on a uniprocessor computer.
-0x8000 IMAGE_FILE_BYTES_REVERSED_HI   // The bytes of the word are reversed. This flag is obsolete.
+0x0002 IMAGE_FILE_EXECUTABLE_IMAGE    // 文件可执行
+0x0004 IMAGE_FILE_LINE_NUMS_STRIPPED  // 不存在行信息
+0x0008 IMAGE_FILE_LOCAL_SYMS_STRIPPED // 不存在符号信息
+0x0010 IMAGE_FILE_AGGRESIVE_WS_TRIM   // 调整工作集
+0x0020 IMAGE_FILE_LARGE_ADDRESS_AWARE // 应用程序可以处理大于2GB的地址
+0x0080 IMAGE_FILE_BYTES_REVERSED_LO   // 小尾方式
+0x0100 IMAGE_FILE_32BIT_MACHINE       // 只在32位平台运行
+0x0200 IMAGE_FILE_DEBUG_STRIPPED      // 不包含调试信息
+0x0400 IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP // 不能从可移动盘运行
+0x0800 IMAGE_FILE_NET_RUN_FROM_SWAP       // 不能从网络运行
+0x1000 IMAGE_FILE_SYSTEM                  // 系统文件
+0x2000 IMAGE_FILE_DLL                 // DLL文件
+0x4000 IMAGE_FILE_UP_SYSTEM_ONLY      // 不能在多处理器计算机上运行
+0x8000 IMAGE_FILE_BYTES_REVERSED_HI   // 大尾方式
 ```
 ## 2.2. IMAGE_OPTIONAL_HEADER32
 以下偏移以IMAGE_NT_HEADERS为基准。
 ```
 IMAGE_OPTIONAL_HEADER32 STRUCT
-  +18h WORD   Magic;                  // 标志字, ROM 映像（0107h）,普通可执行文件（010Bh）
+  +18h WORD   Magic;                  // 标志字, ROM 映像（0107h）,PE32（010Bh），PE32+（020Bh）
   +1Ah BYTE   MajorLinkerVersion;     // 链接程序的主版本号
   +1Bh BYTE   MinorLinkerVersion;     // 链接程序的次版本号
-  +1Ch DWORD SizeOfCode;              // 所有含代码的节的总大小
-  +20h DWORD SizeOfInitializedData;   // 所有含已初始化数据的节的总大小
-  +24h DWORD SizeOfUninitializedData; // 所有含未初始化数据的节的大小
+  +1Ch DWORD SizeOfCode;              // 所有含代码的节的总大小 文件对齐后大小 编译器填写 无用
+  +20h DWORD SizeOfInitializedData;   // 所有含已初始化数据的节的总大小 文件对齐后大小 编译器填写 无用
+  +24h DWORD SizeOfUninitializedData; // 所有含未初始化数据的节的大小 文件对齐后大小 编译器填写 无用
   +28h DWORD AddressOfEntryPoint;     // 程序执行入口RVA
-  +2Ch DWORD BaseOfCode;              // 代码的区块的起始RVA
-  +30h DWORD BaseOfData;              // 数据的区块的起始RVA
+  +2Ch DWORD BaseOfCode;              // 代码的区块的起始RVA 编译器填写 无用
+  +30h DWORD BaseOfData;              // 数据的区块的起始RVA 编译器填写 无用
   +34h DWORD ImageBase;               // 程序的首选装载地址
   +38h DWORD SectionAlignment;        // 内存中的区块的对齐大小
   +3Ch DWORD FileAlignment;           // 文件中的区块的对齐大小
@@ -111,17 +112,17 @@ IMAGE_OPTIONAL_HEADER32 STRUCT
   +46h WORD  MinorImageVersion;       // 可运行于操作系统的次版本号
   +48h WORD  MajorSubsystemVersion;   // 要求最低子系统版本的主版本号
   +4Ah WORD  MinorSubsystemVersion;   // 要求最低子系统版本的次版本号
-  +4Ch DWORD Win32VersionValue;       // 莫须有字段，不被病毒利用的话一般为0
-  +50h DWORD SizeOfImage;             // 映像装入内存后的总尺寸
-  +54h DWORD SizeOfHeaders;           // 所有头 + 区块表的尺寸大小
+  +4Ch DWORD Win32VersionValue;       // 一般为0
+  +50h DWORD SizeOfImage;             // 映像装入内存后的总尺寸，可以比实际值大，必须内存对齐
+  +54h DWORD SizeOfHeaders;           // 所有头 + 区块表的尺寸大小，必须文件对齐
   +58h DWORD CheckSum;                // 映像的校检和
-  +5Ch WORD  Subsystem;               // 可执行文件期望的子系统
+  +5Ch WORD  Subsystem;               // 可执行文件期望的子系统，驱动（1），图形界面（2），控制台、DLL（3）
   +5Eh WORD  DllCharacteristics;      // DllMain()函数何时被调用，默认为 0
   +60h DWORD SizeOfStackReserve;      // 初始化时的栈大小
   +64h DWORD SizeOfStackCommit;       // 初始化时实际提交的栈大小
   +68h DWORD SizeOfHeapReserve;       // 初始化时保留的堆大小
   +6Ch DWORD SizeOfHeapCommit;        // 初始化时实际提交的堆大小
-  +70h DWORD LoaderFlags;             // 与调试有关，默认为 0
+  +70h DWORD LoaderFlags;             // 与调试有关，默认为0
   +74h DWORD NumberOfRvaAndSizes;     // 下边数据目录的项数，这个字段自Windows NT 发布以来一直是16
   +78h IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];  // 数据目录表，指向多种不同用途的数据块
 IMAGE_OPTIONAL_HEADER32 ENDS

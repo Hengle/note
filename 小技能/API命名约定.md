@@ -96,4 +96,3 @@ Nt系列函数是直接调用对应功能代码，而Zw系列函数是在ring 0�
 ## 3.4. ntdll.dll和ntoskrnl.exe中ZW系列函数的区别
 * ntdll.dll：传入服务号到eax——>调用SharedUserData!SystemCallStub (7ffe0300)函数->KiSystemService---->Nt系列函数(ntoskrnl)
 * ntoskrnl.exe：传入服务号eax——>KiSystemService--->Nt系列函数(ntoskrnl)
-

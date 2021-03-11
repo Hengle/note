@@ -273,44 +273,44 @@ nt!_ETHREAD
    +0x1e0 ActiveTimerListLock : Uint4B           ;双向链表头，包含了当前线程的所有定时器
    +0x1e4 ActiveTimerListHead : _LIST_ENTRY      ;操作这个链表(包含当前线程的所有定时器的双链表)的自旋锁。使用自旋锁可以把原本可能发生的并行事件导致的问题通过强制串行化得到解决。比如对线程中的定时器这个互斥资源就典型的需要串行化，否则将导致定时器的错乱等很多问题
    +0x1ec Cid              : _CLIENT_ID          ;进程ID和线程ID
-   +0x1f4 LpcReplySemaphore : _KSEMAPHORE
-   +0x1f4 KeyedWaitSemaphore : _KSEMAPHORE
-   +0x208 LpcReplyMessage  : Ptr32 Void
-   +0x208 LpcWaitingOnPort : Ptr32 Void
-   +0x20c ImpersonationInfo : Ptr32 _PS_IMPERSONATION_INFORMATION
-   +0x210 IrpList          : _LIST_ENTRY
-   +0x218 TopLevelIrp      : Uint4B
-   +0x21c DeviceToVerify   : Ptr32 _DEVICE_OBJECT
+   +0x1f4 LpcReplySemaphore : _KSEMAPHORE        ;用于LPC应答通知
+   +0x1f4 KeyedWaitSemaphore : _KSEMAPHORE       ;用于处理带键的事件
+   +0x208 LpcReplyMessage  : Ptr32 Void          ;LPC应答的消息
+   +0x208 LpcWaitingOnPort : Ptr32 Void          ;说明了线程在哪个"端口对象"上等待消息
+   +0x20c ImpersonationInfo : Ptr32 _PS_IMPERSONATION_INFORMATION    ;线程的模仿信息，windows允许一个线程在执行过程中模仿其他的用户来执行一段功能，这样可以实现更为灵活的访问控制安全特性
+   +0x210 IrpList          : _LIST_ENTRY         ;双向链表头，其中包含了当前线程所有正在处理但尚未完成的I/O请求(Irp对象)
+   +0x218 TopLevelIrp      : Uint4B              ;指向线程的顶级IRP
+   +0x21c DeviceToVerify   : Ptr32 _DEVICE_OBJECT;指向的是一个"待检验"的设备，当磁盘或CD-ROM设备的驱动程序"发现"自从上一次该线程访问该设备以来，该设备有了"变化"，就会设置线程的DeviceToVerify域，从而使最高层的驱动程序(比如文件系统)，可以检测到设备变化
    +0x220 ThreadsProcess   : Ptr32 _EPROCESS     ;当前进程结构体的指针，可以定位进程
-   +0x224 StartAddress     : Ptr32 Void
-   +0x228 Win32StartAddress : Ptr32 Void
-   +0x228 LpcReceivedMessageId : Uint4B
+   +0x224 StartAddress     : Ptr32 Void          ;线程的启动地址，通常是系统DLL中的线程启动地址，(例如kernel32.dll中的BaseProcessStart或BaseThreadStart函数)
+   +0x228 Win32StartAddress : Ptr32 Void         ;线程的启动地址，windows子系统接收到的线程启动地址，即CreateThread API函数接收到的线程启动地址
+   +0x228 LpcReceivedMessageId : Uint4B          ;包含了接收到的LPC消息的ID
    +0x22c ThreadListEntry  : _LIST_ENTRY         ;连接一个进程所有线程的双向链表，总共存在两个这样的链表
    +0x234 RundownProtect   : _EX_RUNDOWN_REF
-   +0x238 ThreadLock       : _EX_PUSH_LOCK
-   +0x23c LpcReplyMessageId : Uint4B
-   +0x240 ReadClusterSize  : Uint4B
-   +0x244 GrantedAccess    : Uint4B
-   +0x248 CrossThreadFlags : Uint4B
-   +0x248 Terminated       : Pos 0, 1 Bit
-   +0x248 DeadThread       : Pos 1, 1 Bit
-   +0x248 HideFromDebugger : Pos 2, 1 Bit
-   +0x248 ActiveImpersonationInfo : Pos 3, 1 Bit
-   +0x248 SystemThread     : Pos 4, 1 Bit
-   +0x248 HardErrorsAreDisabled : Pos 5, 1 Bit
-   +0x248 BreakOnTermination : Pos 6, 1 Bit
-   +0x248 SkipCreationMsg  : Pos 7, 1 Bit
-   +0x248 SkipTerminationMsg : Pos 8, 1 Bit
-   +0x24c SameThreadPassiveFlags : Uint4B
+   +0x238 ThreadLock       : _EX_PUSH_LOCK       ;推锁，用户保护线程的数据属性
+   +0x23c LpcReplyMessageId : Uint4B             ;指明了当前线程正在等待对一个LPC消息的应答
+   +0x240 ReadClusterSize  : Uint4B              ;指明了在一次I/O操作中读取多少个页面，用于页面交换文件和内存映射文件的读操作
+   +0x244 GrantedAccess    : Uint4B              ;线程的访问权限
+   +0x248 CrossThreadFlags : Uint4B              ;针对跨线程访问的标志位
+   +0x248 Terminated       : Pos 0, 1 Bit        ;线程已终止操作
+   +0x248 DeadThread       : Pos 1, 1 Bit        ;线程创建失败
+   +0x248 HideFromDebugger : Pos 2, 1 Bit        ;该线程对于调试器不可见
+   +0x248 ActiveImpersonationInfo : Pos 3, 1 Bit ;线程正在模仿
+   +0x248 SystemThread     : Pos 4, 1 Bit        ;是一个系统线程
+   +0x248 HardErrorsAreDisabled : Pos 5, 1 Bit   ;对于该线程，硬件错误无效
+   +0x248 BreakOnTermination : Pos 6, 1 Bit      ;调试器在线程终止时停下该线程
+   +0x248 SkipCreationMsg  : Pos 7, 1 Bit        ;不向调试器发送创建消息
+   +0x248 SkipTerminationMsg : Pos 8, 1 Bit      ;不向调试器发送终止消息
+   +0x24c SameThreadPassiveFlags : Uint4B        ;一些只有在最低中断级别(被动级别)上只能被该线程自身访问的标志位，访问时无需互锁操作
    +0x24c ActiveExWorker   : Pos 0, 1 Bit
    +0x24c ExWorkerCanWaitUser : Pos 1, 1 Bit
    +0x24c MemoryMaker      : Pos 2, 1 Bit
-   +0x250 SameThreadApcFlags : Uint4B
+   +0x250 SameThreadApcFlags : Uint4B            ;一些在APC中断级别(也是很低的级别)上被该线程自身访问的标志位，访问时无需互锁操作
    +0x250 LpcReceivedMsgIdValid : Pos 0, 1 Bit
    +0x250 LpcExitThreadCalled : Pos 1, 1 Bit
    +0x250 AddressSpaceOwner : Pos 2, 1 Bit
-   +0x254 ForwardClusterOnly : UChar
-   +0x255 DisablePageFaultClustering : UChar
+   +0x254 ForwardClusterOnly : UChar             ;指示是否仅仅前向聚集，页面错误处理相关
+   +0x255 DisablePageFaultClustering : UChar     ;用于控制页面交换的聚集与否。页面错误处理相关
 ```
 ## 5.1. _KTHREAD
 ```x86asm
@@ -474,7 +474,7 @@ nt!_EPROCESS
    +0x06c ProcessLock      : _EX_PUSH_LOCK       ;控制结构体只允许一个人改
    +0x070 CreateTime       : _LARGE_INTEGER      ;进程的创建时间
    +0x078 ExitTime         : _LARGE_INTEGER      ;进程的退出时间
-   +0x080 RundownProtect   : _EX_RUNDOWN_REF     ;锁定链表用
+   +0x080 RundownProtect   : _EX_RUNDOWN_REF     ;线程的停止保护锁，对于跨线程引用TEB结构或者挂起线程的执行等操作，需要获得此锁才能运行，以避免在操作过程中线程被销毁
    +0x084 UniqueProcessId  : Ptr32 Void          ;进程ID
    +0x088 ActiveProcessLinks : _LIST_ENTRY       ;连接所有活动进程的双向链表，全局变量PsActiveProcessHead指向链表头。利用PsActiveProcessHead加上该成员可以遍历所有进程，通过断链可以使得可以从WindowsAPI中隐藏进程，但是进程仍然可以正常运行（Windows的调度单元是线程，进程仅仅提供了一个运行环境如资源和物理页基址）
    +0x090 QuotaUsage       : [3] Uint4B          ;物理页相关统计信息

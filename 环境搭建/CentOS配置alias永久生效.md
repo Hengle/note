@@ -35,4 +35,3 @@ alias untar='tar xvf '     #解压tar
 alias unjar='jar xvf '     #解压jar
 alias ipe='curl ipinfo.io/ip'    #查看公网IP地址
 ```
-

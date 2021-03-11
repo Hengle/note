@@ -63,9 +63,10 @@ sudo yum localinstall https://repo.mysql.com//mysql80-community-release-el7-1.no
 sudo yum install mysql-community-server
 sudo service mysqld start
 #查看初始随机密码 sudo grep 'temporary password' /var/log/mysqld.log
+#bqvO2PTfq5&f
 #登录 mysql -uroot -p
 #如果无初始随机密码则在输入密码环节直接回车然后输入 flush privileges
-#修改密码（use mysql）ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';
+#修改密码（use mysql）ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'QWer123^&*';
 #修改默认加密方式，修改文件/etc/my.cnf，加一行default_authentication_plugin=mysql_native_password;
 #如果一开始不输入密码或输错密码都能连接MySQL server，修改文件 /etc/my.cnf，注释掉skip-grant-tables，重启MySQL服务
 #后期如果忘记密码，可以通过skip-grant-tables配置跳过输入密码登录，之后修改密码（如果‘root’@'localhost'变为'root'@'%'，那么alter语句中的也要修改）
